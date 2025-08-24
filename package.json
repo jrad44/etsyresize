@@ -1,0 +1,20 @@
+{
+  "name": "etsyresize",
+  "version": "1.0.0",
+  "description": "Simple marketplace image resizer with payment unlock",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.4",
+    "archiver": "^6.0.2",
+    "express-rate-limit": "^7.1.5",
+    "stripe": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "@upstash/redis": "^1.31.0",
+    "body-parser": "^1.20.2"
+  }
+}
