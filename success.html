@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Payment Successful – Etsy Resize</title>
+  <style>
+    body {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      max-width: 640px;
+      margin: 40px auto;
+      padding: 0 16px;
+      text-align: center;
+    }
+    h1 { margin-bottom: 0.5em; }
+    p { margin-top: 0; font-size: 1.1em; }
+  </style>
+</head>
+<body>
+  <h1>Thank you for your purchase!</h1>
+  <p id="msg">Processing your unlock…</p>
+  <script>
+    async function fetchToken(sessionId) {
+      const res = await fetch(`/token?session_id=${encodeURIComponent(sessionId)}`);
+      const json = await res.json();
+      if (json.ok && json.token) {
+        localStorage.setItem('unlockToken', json.token);
+        location.href = '/';
+        return;
+      }
+      // If not yet ready, retry in 2 seconds (webhook may be delayed)
+      setTimeout(() => fetchToken(sessionId), 2000);
+    }
+    const params = new URLSearchParams(window.location.search);
+    const sid = params.get('session_id');
+    if (!sid) {
+      document.getElementById('msg').textContent = 'Missing session information.';
+    } else {
+      fetchToken(sid);
+    }
+  </script>
+</body>
+</html>
