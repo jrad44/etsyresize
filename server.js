@@ -193,11 +193,16 @@ app.post('/process', upload.array('files'), async (req, res) => {
     return await img.jpeg({ quality: q, mozjpeg: true }).toBuffer();
   }
   try {
-    if (files.length === 1) {
-      const out = await processOne(files[0].buffer);
-      res.setHeader('Content-Type', fmt === 'png' ? 'image/png' : 'image/jpeg');
-      return res.send(out);
-    }
+        if (files.length === 1) {
+          const out = await processOne(files[0].buffer);
+          // Set appropriate content type for single-file responses
+          res.setHeader('Content-Type', fmt === 'png' ? 'image/png' : 'image/jpeg');
+          // Set Content-Disposition so browsers treat the response as a download.
+          // Without this header some browsers may open the image inline and our
+          // client-side download handler might not trigger as expected.
+          res.setHeader('Content-Disposition', `attachment; filename="resized.${fmt}"`);
+          return res.send(out);
+        }
     // Multiple files: return a zip
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename="resized.zip"');
