@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Etsy Resize – Marketplace Image Resizer</title>
+  <style>
+    body {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      max-width: 880px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+    .drop {
+      border: 2px dashed #bbb;
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      transition: background 0.3s;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin: 12px 0;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      background: #f7f7f7;
+      cursor: pointer;
+    }
+    select, input {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Etsy Resize – Marketplace Image Resizer</h1>
+  <p>Instantly resize your product photos to fit popular marketplaces like Amazon, Etsy, Shopify and more. No signup required. Free version allows one image with watermark. Unlock batch resizing and watermark removal for a small one‑time fee.</p>
+
+  <!-- AdSense top banner -->
+  <ins class="adsbygoogle"
+       style="display:block; text-align:center; margin:12px 0;"
+       data-ad-client="ca-pub-XXXX"
+       data-ad-slot="9999999999"
+       data-ad-format="auto"
+       data-full-width-responsive="true"></ins>
+
+  <div class="row">
+    <label>Preset</label>
+    <select id="preset">
+      <option value='{"w":2000,"h":2000,"fmt":"jpeg","q":0.82,"name":"Amazon"}'>Amazon (2000×2000)</option>
+      <option value='{"w":2700,"h":2025,"fmt":"jpeg","q":0.85,"name":"Etsy"}'>Etsy (2700×2025)</option>
+      <option value='{"w":2048,"h":2048,"fmt":"jpeg","q":0.9,"name":"Shopify"}'>Shopify (2048×2048)</option>
+      <option value='{"w":1600,"h":1600,"fmt":"jpeg","q":0.8,"name":"eBay"}'>eBay (1600×1600)</option>
+    </select>
+    <label><input id="keepAspect" type="checkbox" checked> Fit inside (no crop)</label>
+    <label><input id="watermark" type="checkbox" checked> Watermark (auto off if unlocked)</label>
+  </div>
+
+  <div id="drop" class="drop">Drag & drop images here or <input id="file" type="file" accept="image/*" multiple></div>
+
+  <div class="row">
+    <button id="processBtn">Process</button>
+    <button id="buyBtn">Unlock batch & remove watermark ($2)</button>
+    <small id="status"></small>
+  </div>
+
+  <ul id="list"></ul>
+
+  <!-- AdSense bottom banner -->
+  <ins class="adsbygoogle"
+       style="display:block; text-align:center; margin:12px 0;"
+       data-ad-client="ca-pub-XXXX"
+       data-ad-slot="8888888888"
+       data-ad-format="auto"
+       data-full-width-responsive="true"></ins>
+
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXX" crossorigin="anonymous"></script>
+  <script>
+  // Google AdSense loader
+  (adsbygoogle = window.adsbygoogle || []).push({});
+  (adsbygoogle = window.adsbygoogle || []).push({});
+
+  const fileInput = document.getElementById('file');
+  const drop = document.getElementById('drop');
+  const list = document.getElementById('list');
+  const statusEl = document.getElementById('status');
+  const buyBtn = document.getElementById('buyBtn');
+  let files = [];
+
+  // Check if unlocked via token in URL or localStorage
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get('token');
+  if (urlToken) {
+    localStorage.setItem('unlockToken', urlToken);
+    const newParams = new URLSearchParams(window.location.search);
+    newParams.delete('token');
+    history.replaceState({}, '', `${location.pathname}${newParams.toString() ? '?' + newParams.toString() : ''}`);
+  }
+  const savedToken = localStorage.getItem('unlockToken');
+  if (savedToken) {
+    // verify token
+    fetch('/unlock?token=' + encodeURIComponent(savedToken)).then(r => r.json()).then(j => {
+      if (j.ok) {
+        document.getElementById('watermark').checked = false;
+        document.getElementById('watermark').disabled = true;
+        buyBtn.classList.add('hidden');
+      } else {
+        localStorage.removeItem('unlockToken');
+      }
+    });
+  }
+
+  fileInput.addEventListener('change', e => {
+    files = [...e.target.files];
+    renderList();
+  });
+  drop.addEventListener('dragover', e => {
+    e.preventDefault();
+    drop.style.background = '#fafafa';
+  });
+  drop.addEventListener('dragleave', e => {
+    drop.style.background = 'transparent';
+  });
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.style.background = 'transparent';
+    files = [...e.dataTransfer.files];
+    renderList();
+  });
+
+  function renderList() {
+    list.innerHTML = '';
+    files.forEach(f => {
+      const li = document.createElement('li');
+      li.textContent = `${f.name} (${(f.size/1024).toFixed(0)} KB)`;
+      list.appendChild(li);
+    });
+    statusEl.textContent = files.length ? `${files.length} file(s) ready` : '';
+  }
+
+  document.getElementById('processBtn').onclick = async () => {
+    if (!files.length) {
+      alert('Add images first');
+      return;
+    }
+    const preset = JSON.parse(document.getElementById('preset').value);
+    const keep = document.getElementById('keepAspect').checked;
+    const wm = document.getElementById('watermark').checked;
+    const token = localStorage.getItem('unlockToken') || '';
+
+    // Free limit enforcement client-side: 1 file and watermark must remain
+    if (!token && files.length > 1) {
+      alert('Free version: 1 image at a time. Unlock to resize multiple images.');
+      return;
+    }
+
+    statusEl.textContent = 'Processing...';
+    const form = new FormData();
+    files.forEach(f => form.append('files', f));
+    form.append('w', preset.w);
+    form.append('h', preset.h);
+    form.append('fmt', preset.fmt);
+    form.append('q', preset.q);
+    form.append('keepAspect', keep ? '1' : '0');
+    form.append('watermark', wm ? '1' : '0');
+    if (token) form.append('token', token);
+    const res = await fetch('/process', { method: 'POST', body: form });
+    if (!res.ok) {
+      statusEl.textContent = 'Error processing images.';
+      return;
+    }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    const contentType = res.headers.get('Content-Type');
+    const isZip = contentType && contentType.includes('zip');
+    a.href = URL.createObjectURL(blob);
+    a.download = isZip ? `resized_${Date.now()}.zip` : `resized.${preset.fmt}`;
+    a.click();
+    statusEl.textContent = 'Done.';
+  };
+
+  buyBtn.onclick = () => {
+    // Replace this with your live Stripe payment link URL
+    window.location.href = 'https://buy.stripe.com/test_replace_me';
+  };
+  </script>
+</body>
+</html>
