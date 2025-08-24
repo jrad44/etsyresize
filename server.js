@@ -172,11 +172,20 @@ app.post('/process', upload.array('files'), async (req, res) => {
     } else {
       img = img.resize(w, h, { fit: 'cover', position: 'centre' });
     }
-    // Apply simple watermark bottom-right
+    // Apply simple watermark bottom-right. Sharp requires the overlay dimensions
+    // to be equal or smaller than the base image. In rare cases the base image
+    // may be smaller than the preset size (e.g. due to rotation/metadata), so
+    // constrain the watermark height to a small band (60px) across the full
+    // width. Using a smaller overlay avoids the "Image to composite must have
+    // same dimensions or smaller" error seen on Render logs.
     if (wm) {
-      // Create an SVG overlay for watermark
-      const svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><text x="${w - 20}" y="${h - 20}" text-anchor="end" font-size="22" fill="rgba(255,255,255,0.75)" style="font-family:Arial; paint-order: stroke; stroke: rgba(0,0,0,0.5); stroke-width: 2px;">etsyresize.com</text></svg>`;
-      img = img.composite([{ input: Buffer.from(svg), gravity: 'southeast' }]);
+      const wmHeight = 60; // fixed height band for the watermark
+      // Generate a wide SVG the same width as the resized image, but only
+      // `wmHeight` pixels tall. The text is aligned to the bottom right of
+      // this band. We rely on gravity 'south' to place it at the bottom of
+      // the final image. Adjust font-size if needed.
+      const svg = `<svg width="${w}" height="${wmHeight}" xmlns="http://www.w3.org/2000/svg"><text x="${w - 20}" y="${wmHeight - 10}" text-anchor="end" font-size="22" fill="rgba(255,255,255,0.75)" style="font-family:Arial; paint-order: stroke; stroke: rgba(0,0,0,0.5); stroke-width: 2px;">etsyresize.com</text></svg>`;
+      img = img.composite([{ input: Buffer.from(svg), gravity: 'south' }]);
     }
     if (fmt === 'png') {
       return await img.png({ compressionLevel: 9 }).toBuffer();
