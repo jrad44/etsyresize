@@ -167,11 +167,20 @@ app.post('/process', upload.array('files'), async (req, res) => {
   // Helper to process a single buffer
   async function processOne(buf) {
     let img = sharp(buf).rotate();
+    // Build resize options. Use the high-quality Lanczos filter for resampling to
+    // produce the best visual results when shrinking images. When keeping
+    // aspect, fit the image inside the target box; otherwise, cover and crop.
+    const resizeOpts = { width: w, height: h, kernel: sharp.kernel.lanczos3 };
     if (keep) {
-      img = img.resize(w, h, { fit: 'inside', withoutEnlargement: false });
+      resizeOpts.fit = 'inside';
+      // allow enlargement when the source is smaller; disabling withoutEnlargement can
+      // result in smaller than requested outputs when users choose custom sizes.
+      resizeOpts.withoutEnlargement = false;
     } else {
-      img = img.resize(w, h, { fit: 'cover', position: 'centre' });
+      resizeOpts.fit = 'cover';
+      resizeOpts.position = 'centre';
     }
+    img = img.resize(resizeOpts);
     // Apply simple watermark bottom-right. Sharp requires the overlay dimensions
     // to be equal or smaller than the base image. In rare cases the base image
     // may be smaller than the preset size (e.g. due to rotation/metadata), so
