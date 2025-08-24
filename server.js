@@ -179,12 +179,32 @@ app.post('/process', upload.array('files'), async (req, res) => {
     // width. Using a smaller overlay avoids the "Image to composite must have
     // same dimensions or smaller" error seen on Render logs.
     if (wm) {
-      const wmHeight = 60; // fixed height band for the watermark
-      // Generate a wide SVG the same width as the resized image, but only
-      // `wmHeight` pixels tall. The text is aligned to the bottom right of
-      // this band. We rely on gravity 'south' to place it at the bottom of
-      // the final image. Adjust font-size if needed.
-      const svg = `<svg width="${w}" height="${wmHeight}" xmlns="http://www.w3.org/2000/svg"><text x="${w - 20}" y="${wmHeight - 10}" text-anchor="end" font-size="22" fill="rgba(255,255,255,0.75)" style="font-family:Arial; paint-order: stroke; stroke: rgba(0,0,0,0.5); stroke-width: 2px;">etsyresize.com</text></svg>`;
+      // Determine the final width/height after resizing to avoid overlay larger
+      // than the output image. When keepAspect=true, the output dimensions
+      // depend on the original aspect ratio. Compute them based on metadata.
+      const meta = await sharp(buf).metadata();
+      let finalW = w;
+      let finalH = h;
+      if (keep) {
+        const aspect = meta.width / meta.height;
+        const targetAspect = w / h;
+        if (aspect > targetAspect) {
+          finalW = w;
+          finalH = Math.round(w / aspect);
+        } else {
+          finalH = h;
+          finalW = Math.round(h * aspect);
+        }
+      }
+      // Increase watermark band height for better visibility. It will never
+      // exceed the height of the output image.
+      const wmHeight = Math.min(80, finalH);
+      const wmWidth = finalW;
+      // Generate watermark SVG. Use a larger font size and adjust padding to
+      // ensure the text remains legible on small images. The text is white
+      // with a subtle dark stroke so it shows up against both light and dark
+      // backgrounds.
+      const svg = `<svg width=\"${wmWidth}\" height=\"${wmHeight}\" xmlns=\"http://www.w3.org/2000/svg\"><text x=\"${wmWidth - 20}\" y=\"${wmHeight - 10}\" text-anchor=\"end\" font-size=\"24\" fill=\"rgba(255,255,255,0.85)\" style=\"font-family:Arial; paint-order: stroke; stroke: rgba(0,0,0,0.6); stroke-width: 2px;\">etsyresize.com</text></svg>`;
       img = img.composite([{ input: Buffer.from(svg), gravity: 'south' }]);
     }
     if (fmt === 'png') {
