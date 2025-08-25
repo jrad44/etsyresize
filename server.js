@@ -225,7 +225,7 @@ app.post('/process', upload.array('files'), async (req, res) => {
       // with a small margin, and use a white fill with a dark stroke for
       // contrast. Using a dynamic font size helps ensure legibility across
       // different image dimensions.
-      const svg = `<svg width="${wmWidth}" height="${wmHeight}" xmlns="http://www.w3.org/2000/svg"><text x="${wmWidth - 20}" y="${wmHeight - 10}" text-anchor="end" font-size="${fontSize}" fill="rgba(255,255,255,0.85)" style="font-family:Arial; paint-order: stroke; stroke: rgba(0,0,0,0.6); stroke-width: 2px;">etsyresize.com</text></svg>`;
+      const svg = `<svg width="${wmWidth}" height="${wmHeight}" xmlns="http://www.w3.org/2000/svg"><text x="${wmWidth - 20}" y="${wmHeight - 10}" text-anchor="end" font-size="${fontSize}" fill="rgba(255,255,255,0.85)" style="font-family:Arial; paint-order: stroke; stroke: rgba(0,0,0,0.6); stroke-width: 2px;">resizedimage.com</text></svg>`;
       img = img.composite([{ input: Buffer.from(svg), gravity: 'south' }]);
     }
     if (fmt === 'png') {

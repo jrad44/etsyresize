@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Etsy Resize – Marketplace Image Resizer</title>
+  <!-- Update the page title to reflect the new brand name. -->
+  <title>ResizedImage – Marketplace Image Resizer</title>
   <style>
     :root {
       --primary-bg: #7757ff;
@@ -318,8 +319,9 @@
   </style>
 </head>
 <body>
-  <h1>Etsy Resize – Marketplace Image Resizer</h1>
-  <p>Instantly resize your product photos to fit popular marketplaces like Amazon, Etsy, Shopify and more. No signup required. Free version allows one image with watermark. Unlock batch resizing and watermark removal for a small one‑time fee.</p>
+  <!-- Update the main heading and description for the new brand name. -->
+  <h1>ResizedImage – Marketplace Image Resizer</h1>
+  <p>Instantly resize your product photos to fit popular marketplaces like Amazon, Etsy, Shopify and more. No signup required. The free version allows one image with a watermark. Unlock batch resizing and watermark removal for a small one‑time fee.</p>
 
   <!-- Theme toggle; allows switching between light and dark mode. This control is positioned
        at the top‑right of the page via CSS. The associated script persists the user's
@@ -426,7 +428,10 @@
         <span class="pro-badge">PRO</span>
         <span id="unlockedIndicator" class="unlocked-note hidden">Unlocked ✓</span>
       </label>
-      <input id="watermark" type="checkbox" checked>
+      <!-- The remove watermark toggle is unchecked by default on free tier. When the
+           pro token is present, users can check this box to remove the
+           watermark. -->
+      <input id="watermark" type="checkbox">
     </div>
     <div id="customInputs" class="hidden">
       <label>Width <input id="customW" type="number" min="1" step="1" style="width:80px;"></label>
@@ -461,7 +466,9 @@
        opens your Stripe checkout page in a new tab. -->
   <div id="proModal" class="modal hidden">
     <div class="modal-content">
-      <p>To remove the watermark and get access to batch resizing, please provide a small one‑time payment of $2 to unlock all pro features, including any new features in the future.</p>
+      <p>To remove the watermark and get access to batch resizing, please provide a small one‑time payment of $2 to unlock all pro features. Your purchase unlocks current and future pro features.</p>
+      <!-- Link to the user's Stripe checkout page. When clicked, this will open the
+           checkout flow in a new tab. Replace with live link when ready. -->
       <a href="https://buy.stripe.com/test_cNi00bbCe5e1dKBdeh5os00" class="stripe-link" target="_blank">Pay $2 via Stripe</a>
       <button id="closeModal" class="close-btn">Close</button>
     </div>
@@ -734,11 +741,18 @@
         if (hasProToken() || wmCheckbox.disabled) {
           return;
         }
-        // If user attempts to uncheck, show modal and revert the checkbox.
-        if (!wmCheckbox.checked) {
+        /*
+         * The remove watermark toggle is unchecked by default on the free tier. When
+         * a user checks the box (wmCheckbox.checked === true) they are attempting
+         * to remove the watermark. On free accounts this is not allowed, so we
+         * show the upgrade modal and immediately revert the checkbox back to
+         * unchecked. We do not trigger the modal when the user is simply
+         * toggling back to unchecked (leaving the watermark in place).
+         */
+        if (wmCheckbox.checked) {
           modal.classList.remove('hidden');
-          // revert the checkbox to checked (free tier always keeps watermark)
-          wmCheckbox.checked = true;
+          // Revert the checkbox so the watermark remains enabled
+          wmCheckbox.checked = false;
         }
       });
       // Close modal event
