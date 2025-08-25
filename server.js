@@ -2,7 +2,6 @@ const express = require('express');
 const multer = require('multer');
 const sharp = require('sharp');
 const archiver = require('archiver');
-const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
@@ -28,8 +27,6 @@ const validTokens = new Set(
     .filter(Boolean)
 );
 
-app.use(cookieParser());
-
 // Basic rate limiter to protect the service
 app.use(
   rateLimit({
@@ -38,9 +35,21 @@ app.use(
   })
 );
 
+// Helper to parse cookies manually
+function getCookie(req, name) {
+  const cookieHeader = req.headers?.cookie;
+  if (!cookieHeader) return null;
+  const parts = cookieHeader.split(';');
+  for (const part of parts) {
+    const [k, v] = part.trim().split('=');
+    if (k === name) return decodeURIComponent(v);
+  }
+  return null;
+}
+
 // Helper to check Pro access from cookie
 function isPro(req) {
-  const token = req.cookies?.pro_access;
+  const token = getCookie(req, 'pro_access');
   return token && validTokens.has(token);
 }
 
@@ -54,12 +63,10 @@ app.get('/unlock', (req, res) => {
   const token = (req.query.token || '').toString();
   const ok = validTokens.has(token);
   if (ok) {
-    res.cookie('pro_access', token, {
-      httpOnly: true,
-      sameSite: 'Lax',
-      secure: true,
-      maxAge: 1000 * 60 * 60 * 24 * 730 // ~2 years
-    });
+    // Set cookie manually via res.setHeader
+    // cookie flags: HttpOnly, Secure, SameSite=Lax, max-age ~2 years
+    const cookieStr = `pro_access=${encodeURIComponent(token)}; Max-Age=${60 * 60 * 24 * 730}; Path=/; HttpOnly; SameSite=Lax; Secure`;
+    res.setHeader('Set-Cookie', cookieStr);
   }
   res.json({ ok });
 });
@@ -119,7 +126,7 @@ app.post('/process', upload.array('files'), async (req, res) => {
     }
 
     // Determine sizing options
-    let preset = req.body.preset;
+    let { preset } = req.body;
     let width = parseInt(req.body.width) || undefined;
     let height = parseInt(req.body.height) || undefined;
     const fit = req.body.fit === 'cover' ? 'cover' : 'inside';
@@ -148,12 +155,11 @@ app.post('/process', upload.array('files'), async (req, res) => {
         });
       }
 
-      // Choose output format: convert HEIC/HEIF to JPEG, keep PNG for png input
+      // Determine output format: convert HEIC/HEIF to JPEG; preserve PNG
       let outputFormat = 'jpeg';
       if (ext === '.png') {
         outputFormat = 'png';
       }
-      // For heic or heif, sharp will automatically convert to jpeg if requested
       if (outputFormat === 'png') {
         image = image.png();
       } else {
@@ -179,7 +185,6 @@ app.post('/process', upload.array('files'), async (req, res) => {
     // Process files concurrently
     const outputs = await Promise.all(files.map(processOne));
 
-    // Single file: return image
     if (outputs.length === 1) {
       const { buffer, filename } = outputs[0];
       res.set({
@@ -190,7 +195,7 @@ app.post('/process', upload.array('files'), async (req, res) => {
       return res.send(buffer);
     }
 
-    // Multiple: zip
+    // Multiple files: send as ZIP
     res.set({
       'Content-Type': 'application/zip',
       'Content-Disposition': 'attachment; filename="resized_images.zip"',
