@@ -217,6 +217,29 @@ app.post('/process', upload.array('files'), async (req, res) => {
 });
 
 // Serve static files from root (index.html)
+// Custom blog route: map slugs to their respective HTML files so that SEO-friendly
+// paths like /blog/my-article resolve correctly without the .html suffix.  If a
+// slug matches one of the known posts, serve the corresponding file from the
+// blog directory. Otherwise fall through to the static middleware below.
+const blogMap = {
+  'webp-vs-avif-which-to-use-2025': 'webp-vs-avif-which-to-use-2025.html',
+  'ultimate-guide-to-image-aspect-ratios': 'ultimate-guide-to-image-aspect-ratios.html',
+  'resize-images-without-losing-quality': 'resize-images-without-losing-quality.html',
+  'best-image-sizes-for-social-media-2025': 'best-image-sizes-for-social-media-2025.html',
+  'compressing-images-for-faster-websites': 'compressing-images-for-faster-websites.html',
+  'difference-between-resizing-and-compressing': 'difference-between-resizing-and-compressing.html'
+};
+
+app.get('/blog/:slug', (req, res, next) => {
+  const slug = req.params.slug;
+  const file = blogMap[slug];
+  if (file) {
+    const filePath = path.join(__dirname, 'blog', file);
+    return res.sendFile(filePath);
+  }
+  return next();
+});
+
 app.use(express.static(path.join(__dirname)));
 
 const port = process.env.PORT || 3000;
