@@ -736,6 +736,11 @@
       return !!token;
     }
     if (wmCheckbox && modal && closeBtn) {
+      // Ensure the modal is hidden on initial load. In some cases the hidden
+      // class may be lost due to cached state. Adding it here re-applies
+      // the hidden class so the overlay does not appear until explicitly
+      // triggered by the user.
+      modal.classList.add('hidden');
       wmCheckbox.addEventListener('change', () => {
         // If pro is unlocked or the checkbox is disabled (already unlocked), do nothing.
         if (hasProToken() || wmCheckbox.disabled) {
