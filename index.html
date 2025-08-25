@@ -466,7 +466,7 @@
        opens your Stripe checkout page in a new tab. -->
   <div id="proModal" class="modal hidden">
     <div class="modal-content">
-      <p>To remove the watermark and get access to batch resizing, please provide a small one‑time payment of $2 to unlock all pro features. Your purchase unlocks current and future pro features.</p>
+      <p>To remove the watermark and get access to batch resizing, please provide a small one‑time payment of $2 to unlock all pro features, including any new features in the future.</p>
       <!-- Link to the user's Stripe checkout page. When clicked, this will open the
            checkout flow in a new tab. Replace with live link when ready. -->
       <a href="https://buy.stripe.com/test_cNi00bbCe5e1dKBdeh5os00" class="stripe-link" target="_blank">Pay $2 via Stripe</a>
@@ -736,6 +736,11 @@
       return !!token;
     }
     if (wmCheckbox && modal && closeBtn) {
+      // Force the checkbox into an unchecked state on load to avoid
+      // accidental triggers caused by browsers persisting form state across
+      // navigations. Without this, some mobile browsers may remember the
+      // previously checked state and immediately fire the change handler.
+      wmCheckbox.checked = false;
       // Ensure the modal is hidden on initial load. In some cases the hidden
       // class may be lost due to cached state. Adding it here re-applies
       // the hidden class so the overlay does not appear until explicitly
