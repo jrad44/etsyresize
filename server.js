@@ -72,11 +72,11 @@ async function tokenIsValid(token) {
   return memoryTokenSet.has(token);
 }
 
-// Multer for handling file uploads. Increase the per‑file size limit to 50 MB to
+// Multer for handling file uploads. Increase the per‑file size limit to 100 MB to
 // accommodate large images captured on modern smartphones. Without this some
-// mobile uploads may exceed the previous 20 MB limit and cause a "processing"
-// error on the client. Higher limit helps avoid failures on mobile.
-const upload = multer({ limits: { fileSize: 50 * 1024 * 1024 } });
+// mobile uploads may exceed 50 MB and cause a "processing" error on the client.
+// A higher limit helps avoid failures on mobile while still enforcing an upper bound.
+const upload = multer({ limits: { fileSize: 100 * 1024 * 1024 } });
 
 // Basic rate limiting: 300 requests per hour per IP
 app.use(rateLimit({ windowMs: 60 * 60 * 1000, max: 300 }));
@@ -208,19 +208,17 @@ app.post('/process', upload.array('files'), async (req, res) => {
           finalW = Math.round(h * aspect);
         }
       }
-      // Determine the watermark band height as roughly 10% of the final image
-      // height. This value is clamped between 40px and the entire image height
-      // to ensure the watermark is both visible and proportionally scaled on
-      // small and large images. This makes the free‑tier watermark more
-      // prominent, as requested.
-      // Compute watermark band height. Use 15% of the final height with a minimum of
-      // 80px. This yields a larger band for better legibility on free images.
-      const wmHeight = Math.max(80, Math.min(finalH, Math.round(finalH * 0.15)));
+      // Compute the watermark band height as 20% of the final image height,
+      // with a minimum of 100 pixels. This makes the watermark much larger
+      // and more noticeable in the free tier as requested. Clamp to the final
+      // image height to avoid oversizing the overlay.
+      const wmHeight = Math.max(100, Math.min(finalH, Math.round(finalH * 0.2)));
       const wmWidth = finalW;
-      // Scale the font size relative to the watermark band. Increase the ratio to
-      // 0.5 and raise the minimum font size to 16px so the text fills more of
-      // the band.
-      const fontSize = Math.max(16, Math.round(wmHeight * 0.5));
+      // Scale the font size relative to the band height. Use ~60% of the band
+      // height and raise the minimum font size to 24 px. This ensures the
+      // watermark text occupies a substantial portion of the band and is easy
+      // to read on mobile devices.
+      const fontSize = Math.max(24, Math.round(wmHeight * 0.6));
       // Build the watermark SVG. Place the text near the lower right corner
       // with a small margin, and use a white fill with a dark stroke for
       // contrast. Using a dynamic font size helps ensure legibility across
