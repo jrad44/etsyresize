@@ -1,6 +1,4 @@
-<.process-btn.ready
-
-!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -21,6 +19,25 @@
       --pro-hover: #f0a818;
       --text-color: #333333;
       --subtext-color: #666666;
+    }
+
+    /* Dark theme overrides using CSS variables. When data-theme="dark" is set on
+       the document element, these values will override the defaults above to
+       switch the palette to a darker scheme. */
+    [data-theme="dark"] {
+      --primary-bg: #372f62;
+      --primary-bg-light: #443a77;
+      --primary-fg: #f7f7ff;
+      --card-border: #444444;
+      --card-hover: #3a3a5e;
+      --selected-border: #8f7fff;
+      --process-bg: linear-gradient(90deg,#3e3e54,#545471);
+      --process-fg: #ffffff;
+      --pro-bg: #b58a00;
+      --pro-fg: #ffffff;
+      --pro-hover: #c99900;
+      --text-color: #e0e0e0;
+      --subtext-color: #b0b0c0;
     }
     body {
       font-family: ui-sans-serif, system-ui, sans-serif;
@@ -172,7 +189,9 @@
     }
     /* When ready to process, turn the button green to indicate action */
     .process-btn.ready {
-      background: linear-gradient(90deg, # #0cd45d, #17ba64);
+      /* Use a vibrant green gradient when the button is active to
+         clearly communicate that the image is ready to process and download. */
+      background: linear-gradient(90deg, #0cd45d, #17ba64);
       color: #ffffff;
     }
     .pro-bar {
@@ -225,11 +244,36 @@
       font-weight: bold;
       color: #12c271;
     }
+
+    /* Theme toggle container in top-right corner */
+    .theme-toggle {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.9rem;
+      color: var(--primary-fg);
+      cursor: pointer;
+    }
+    .theme-toggle input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+    }
   </style>
 </head>
 <body>
   <h1>Etsy Resize – Marketplace Image Resizer</h1>
   <p>Instantly resize your product photos to fit popular marketplaces like Amazon, Etsy, Shopify and more. No signup required. Free version allows one image with watermark. Unlock batch resizing and watermark removal for a small one‑time fee.</p>
+
+  <!-- Theme toggle; allows switching between light and dark mode. This control is positioned
+       at the top‑right of the page via CSS. The associated script persists the user's
+       preference in localStorage and applies the dark theme automatically on load. -->
+  <div class="theme-toggle">
+    <label for="themeToggle">Dark mode</label>
+    <input type="checkbox" id="themeToggle">
+  </div>
 
   <!-- Hero drop zone -->
   <div id="drop" class="drop">
@@ -251,6 +295,8 @@
     <option value='{"w":2048,"h":2048,"fmt":"jpeg","q":0.9,"name":"Shopify"}'>Shopify</option>
     <option value='{"w":1600,"h":1600,"fmt":"jpeg","q":0.8,"name":"eBay"}'>eBay</option>
     <option value='{"w":0,"h":0,"fmt":"jpeg","q":0.9,"name":"Custom"}'>Custom</option>
+    <option value='{"w":2000,"h":2000,"fmt":"jpeg","q":0.85,"name":"Poshmark"}'>Poshmark</option>
+    <option value='{"w":1080,"h":1080,"fmt":"jpeg","q":0.8,"name":"Mercari"}'>Mercari</option>
   </select>
 
   <!-- Preset cards -->
@@ -292,6 +338,20 @@
         <div class="quality">Custom</div>
         <div class="checkmark">✔</div>
       </div>
+  <div class="preset-card" data-value='{"w":2000,"h":2000,"fmt":"jpeg","q":0.85,"name":"Poshmark"}'>
+    <div class="icon">🎀</div>
+    <div class="title">Poshmark</div>
+    <div class="size">2000 × 2000</div>
+    <div class="quality">JPEG • 85%</div>
+    <div class="checkmark">✔</div>
+  </div>
+  <div class="preset-card" data-value='{"w":1080,"h":1080,"fmt":"jpeg","q":0.8,"name":"Mercari"}'>
+    <div class="icon">📱</div>
+    <div class="title">Mercari</div>
+    <div class="size">1080 × 1080</div>
+    <div class="quality">JPEG • 80%</div>
+    <div class="checkmark">✔</div>
+  </div>
     </div>
   </div>
 
@@ -323,6 +383,10 @@
           <option value="png">PNG</option>
         </select>
       </label>
+    <label>Quality
+      <input id="customQ" type="range" min="50" max="100" value="90" style="width:120px;">
+    </label>
+    <span id="qualityValue" style="margin-left:4px;font-size:0.85rem;">90%</span>
     </div>
   </div>
 
@@ -368,6 +432,28 @@
   const customW = document.getElementById('customW');
   const customH = document.getElementById('customH');
   const customFmt = document.getElementById('customFmt');
+      const customQ = document.getElementById('customQ');
+      const qualityValue = document.getElementById('qualityValue');
+
+      // Theme toggle: load stored preference and set up listener
+      const themeToggleEl = document.getElementById('themeToggle');
+      if (themeToggleEl) {
+        // Apply saved theme on load
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          themeToggleEl.checked = true;
+        }
+        themeToggleEl.addEventListener('change', () => {
+          if (themeToggleEl.checked) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+          } else {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.removeItem('theme');
+          }
+        });
+      }
   let files = [];
 
   // Check if unlocked via token in URL or localStorage
@@ -454,8 +540,14 @@
     const processBtnEl = document.getElementById('processBtn');
     if (processBtnEl) {
       const ready = files.length > 0;
-      processBtnEl.disabled = !ready;
-      // Toggle the green ready state when there are files
+      // When ready, remove the disabled attribute entirely so CSS rules
+      // for the .ready state take effect. Otherwise, set the attribute.
+      if (ready) {
+        processBtnEl.removeAttribute('disabled');
+      } else {
+        processBtnEl.setAttribute('disabled', '');
+      }
+      // Toggle the ready class to control the green gradient styling
       processBtnEl.classList.toggle('ready', ready);
     }
   }
@@ -472,14 +564,16 @@
       preset = { w: 0, h: 0, fmt: 'jpeg', q: 0.9, name: 'Custom' };
     }
     // If custom, override with user-provided values
-    if (preset.name === 'Custom') {
-      const wVal = parseInt(customW.value, 10);
-      const hVal = parseInt(customH.value, 10);
-      preset.w = isNaN(wVal) || wVal <= 0 ? 0 : wVal;
-      preset.h = isNaN(hVal) || hVal <= 0 ? 0 : hVal;
-      preset.fmt = customFmt.value || 'jpeg';
-      preset.q = 0.9;
-    }
+        if (preset.name === 'Custom') {
+          const wVal = parseInt(customW.value, 10);
+          const hVal = parseInt(customH.value, 10);
+          preset.w = isNaN(wVal) || wVal <= 0 ? 0 : wVal;
+          preset.h = isNaN(hVal) || hVal <= 0 ? 0 : hVal;
+          preset.fmt = customFmt.value || 'jpeg';
+          // Convert quality slider (50-100) to decimal (0.5-1.0)
+          const qVal = parseInt(customQ && customQ.value ? customQ.value : '90', 10);
+          preset.q = isNaN(qVal) ? 0.9 : qVal / 100;
+        }
     const keep = document.getElementById('keepAspect').checked;
     const wm = document.getElementById('watermark').checked;
     const token = localStorage.getItem('unlockToken') || '';
@@ -541,6 +635,13 @@
       presetSelect.dispatchEvent(new Event('change'));
     });
   });
+
+      // Update quality percentage label when the range slider changes
+      if (customQ && qualityValue) {
+        customQ.addEventListener('input', () => {
+          qualityValue.textContent = customQ.value + '%';
+        });
+      }
   </script>
 </body>
 </html>
