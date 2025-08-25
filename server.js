@@ -161,6 +161,12 @@ app.post('/process', upload.array('files'), async (req, res) => {
   const w = parseInt(req.body.w, 10) || 0;
   const h = parseInt(req.body.h, 10) || 0;
   const fmt = (req.body.fmt || 'jpeg').toLowerCase();
+  // We'll track the output format separately from the requested format so
+  // that we can override it if the input is HEIC/HEIF (since Sharp cannot
+  // output those formats directly and we convert to JPEG instead). By
+  // default this matches the requested fmt but may be updated within
+  // processOne().
+  let outputFormat = fmt;
   const q = Math.round((parseFloat(req.body.q) || 0.85) * 100);
   const keep = req.body.keepAspect === '1';
   // If free tier, force watermark on
@@ -169,7 +175,33 @@ app.post('/process', upload.array('files'), async (req, res) => {
 
   // Helper to process a single buffer
   async function processOne(buf) {
-    let img = sharp(buf).rotate();
+    // Attempt to detect the input image format. Some mobile devices, notably
+    // iPhones, produce HEIC/HEIF images which Sharp may not decode by
+    // default. If we encounter a HEIC or HEIF file, convert it to JPEG
+    // first. This helps avoid "Error processing images" responses on
+    // mobile when the uploaded file format is unsupported.
+    let metadata;
+    try {
+      metadata = await sharp(buf).metadata();
+    } catch (err) {
+      // If metadata cannot be read, fall back to processing as-is.
+      metadata = {};
+    }
+    // Track the output format separately so we can override for HEIC/HEIF
+    let outputFmt = outputFormat;
+    let img;
+    if (metadata && (metadata.format === 'heic' || metadata.format === 'heif')) {
+      // Convert HEIC/HEIF to JPEG before resizing. We use .rotate() to honor
+      // any orientation metadata. Note: converting here overrides the
+      // original requested output format because HEIC cannot be output.
+      img = sharp(buf).rotate().jpeg();
+      outputFmt = 'jpeg';
+      // Also update the outer scoped outputFormat so the Content-Type and file
+      // names reflect the converted format.
+      outputFormat = 'jpeg';
+    } else {
+      img = sharp(buf).rotate();
+    }
     // Build resize options. Use the high-quality Lanczos filter for resampling to
     // produce the best visual results when shrinking images. When keeping
     // aspect, fit the image inside the target box; otherwise, cover and crop.
@@ -226,7 +258,9 @@ app.post('/process', upload.array('files'), async (req, res) => {
       const svg = `<svg width="${wmWidth}" height="${wmHeight}" xmlns="http://www.w3.org/2000/svg"><text x="${wmWidth - 20}" y="${wmHeight - 10}" text-anchor="end" font-size="${fontSize}" fill="rgba(255,255,255,0.85)" style="font-family:Arial; paint-order: stroke; stroke: rgba(0,0,0,0.6); stroke-width: 2px;">resizedimage.com</text></svg>`;
       img = img.composite([{ input: Buffer.from(svg), gravity: 'south' }]);
     }
-    if (fmt === 'png') {
+    // Encode the resized image into the appropriate format. If we detected a
+    // HEIC/HEIF source above, outputFmt will have been overridden to 'jpeg'.
+    if (outputFmt === 'png') {
       return await img.png({ compressionLevel: 9 }).toBuffer();
     }
     return await img.jpeg({ quality: q, mozjpeg: true }).toBuffer();
@@ -235,11 +269,11 @@ app.post('/process', upload.array('files'), async (req, res) => {
         if (files.length === 1) {
           const out = await processOne(files[0].buffer);
           // Set appropriate content type for single-file responses
-          res.setHeader('Content-Type', fmt === 'png' ? 'image/png' : 'image/jpeg');
+          res.setHeader('Content-Type', outputFormat === 'png' ? 'image/png' : 'image/jpeg');
           // Set Content-Disposition so browsers treat the response as a download.
           // Without this header some browsers may open the image inline and our
           // client-side download handler might not trigger as expected.
-          res.setHeader('Content-Disposition', `attachment; filename="resized.${fmt}"`);
+          res.setHeader('Content-Disposition', `attachment; filename="resized.${outputFormat}"`);
           return res.send(out);
         }
     // Multiple files: return a zip
@@ -250,7 +284,7 @@ app.post('/process', upload.array('files'), async (req, res) => {
     await Promise.all(files.map(async (f) => {
       const out = await processOne(f.buffer);
       const name = f.originalname.replace(/\.[^.]+$/, '');
-      archive.append(out, { name: `${name}_${w}x${h}.${fmt}` });
+      archive.append(out, { name: `${name}_${w}x${h}.${outputFormat}` });
     }));
     archive.finalize();
   } catch (err) {
