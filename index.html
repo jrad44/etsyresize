@@ -251,6 +251,12 @@
       justify-content: center;
       z-index: 1000;
     }
+    /* Ensure that the modal stays hidden when the hidden class is present.
+       This override prevents other styles (like the flex display on .modal)
+       from causing it to show inadvertently on page load. */
+    .modal.hidden {
+      display: none !important;
+    }
     .modal-content {
       background: #fff;
       padding: 24px;
