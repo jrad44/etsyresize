@@ -156,6 +156,7 @@
       padding: 16px;
       border-radius: 12px;
       border: none;
+      /* Default (disabled) state: neutral grey gradient */
       background: var(--process-bg);
       color: var(--process-fg);
       font-size: 1rem;
@@ -166,6 +167,11 @@
     .process-btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+    /* When ready to process, turn the button green to indicate action */
+    .process-btn.ready {
+      background: linear-gradient(90deg, #12c271, #23b67d);
+      color: #ffffff;
     }
     .pro-bar {
       width: 100%;
@@ -208,6 +214,15 @@
       color: var(--subtext-color);
     }
     .hidden { display: none; }
+
+    /* Styling for the unlocked indicator shown next to the watermark option
+       when the paid tier is active */
+    .unlocked-note {
+      margin-left: 6px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: #12c271;
+    }
   </style>
 </head>
 <body>
@@ -287,8 +302,14 @@
     </div>
     <div class="option-row">
       <!-- Update label text to clarify that the toggle removes the watermark. When
-           the site is unlocked this box becomes unchecked and disabled. -->
-      <label for="watermark">Remove watermark<span class="pro-badge">PRO</span></label>
+           the site is unlocked this box becomes unchecked and disabled.
+           An extra span with id="unlockedIndicator" will display a confirmation
+           message when the pro tier is active. -->
+      <label for="watermark">
+        Remove watermark
+        <span class="pro-badge">PRO</span>
+        <span id="unlockedIndicator" class="unlocked-note hidden">Unlocked ✓</span>
+      </label>
       <input id="watermark" type="checkbox" checked>
     </div>
     <div id="customInputs" class="hidden">
@@ -361,11 +382,19 @@
     // verify token
     fetch('/unlock?token=' + encodeURIComponent(savedToken)).then(r => r.json()).then(j => {
       if (j.ok) {
-        document.getElementById('watermark').checked = false;
-        document.getElementById('watermark').disabled = true;
+        // Hide the watermark checkbox and show unlocked status when the paid tier is active
+        const wmInput = document.getElementById('watermark');
+        if (wmInput) {
+          wmInput.checked = false;
+          wmInput.disabled = true;
+        }
         buyBtn.classList.add('hidden');
+        const unlockedIndicator = document.getElementById('unlockedIndicator');
+        if (unlockedIndicator) unlockedIndicator.classList.remove('hidden');
       } else {
         localStorage.removeItem('unlockToken');
+        const unlockedIndicator = document.getElementById('unlockedIndicator');
+        if (unlockedIndicator) unlockedIndicator.classList.add('hidden');
       }
     });
   }
@@ -421,7 +450,12 @@
     statusEl.textContent = files.length ? `${files.length} file(s) ready` : '';
     // Enable or disable the process button based on file selection
     const processBtnEl = document.getElementById('processBtn');
-    if (processBtnEl) processBtnEl.disabled = files.length === 0;
+    if (processBtnEl) {
+      const ready = files.length > 0;
+      processBtnEl.disabled = !ready;
+      // Toggle the green ready state when there are files
+      processBtnEl.classList.toggle('ready', ready);
+    }
   }
 
   document.getElementById('processBtn').onclick = async () => {
