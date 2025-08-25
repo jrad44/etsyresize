@@ -327,7 +327,7 @@
 <body>
   <!-- Update the main heading and description for the new brand name. -->
   <h1>ResizedImage – Marketplace Image Resizer</h1>
-  <p>Instantly resize your product photos to fit popular marketplaces like Amazon, Etsy, Shopify and more. No signup required. The free version allows one image with a watermark. Unlock batch resizing and watermark removal for a small one‑time fee.</p>
+  <p>Instantly resize your product photos to fit popular marketplaces like Amazon, Etsy, Shopify and more. No signup required. The free version allows one image up to 10 MB. Unlock batch resizing and larger file limits for a small one‑time fee.</p>
 
   <!-- Theme toggle; allows switching between light and dark mode. This control is positioned
        at the top‑right of the page via CSS. The associated script persists the user's
@@ -420,7 +420,7 @@
   <!-- Options -->
   <div class="options">
     <h2>Options</h2>
-    <div class="option-row">
+    <div class="option-row hidden">
       <label for="keepAspect">Fit inside (no crop)</label>
       <input id="keepAspect" type="checkbox" checked>
     </div>
@@ -430,14 +430,10 @@
            An extra span with id="unlockedIndicator" will display a confirmation
            message when the pro tier is active. -->
       <label for="watermark">
-        Remove watermark
-        <span class="pro-badge">PRO</span>
-        <span id="unlockedIndicator" class="unlocked-note hidden">Unlocked ✓</span>
+        <!-- Watermark toggle removed -->
       </label>
-      <!-- The remove watermark toggle is unchecked by default on free tier. When the
-           pro token is present, users can check this box to remove the
-           watermark. -->
-      <input id="watermark" type="checkbox">
+      <!-- Watermark toggle removed -->
+      <!-- <input id="watermark" type="checkbox"> -->
     </div>
     <div id="customInputs" class="hidden">
       <label>Width <input id="customW" type="number" min="1" step="1" style="width:80px;"></label>
@@ -463,19 +459,18 @@
   <button id="processBtn" class="process-btn" disabled>Process &amp; Download</button>
   <button id="buyBtn" class="pro-bar">
     <span>Unlock Pro Features</span>
-    <span class="features">Batch processing • No watermark • $2.00</span>
+    <span class="features">Batch processing • Up to 50 files • $2.00</span>
   </button>
 
   <!-- Modal prompting users to upgrade to Pro when they attempt to remove the
        watermark on the free tier. This overlay appears above the page and
        prevents interaction until dismissed. The "Pay $2 via Stripe" link
        opens your Stripe checkout page in a new tab. -->
-  <div id="proModal" class="modal hidden">
+  <!-- Modal updated: now describes Pro features instead of watermark removal -->
+  <div id="proModal" class="modal hidden" style="display:none;">
     <div class="modal-content">
-      <p>To remove the watermark and get access to batch resizing, please provide a small one‑time payment of $2 to unlock all pro features, including any new features in the future.</p>
-      <!-- Link to the user's Stripe checkout page. When clicked, this will open the
-           checkout flow in a new tab. Replace with live link when ready. -->
-      <a href="https://buy.stripe.com/test_cNi00bbCe5e1dKBdeh5os00" class="stripe-link" target="_blank">Pay $2 via Stripe</a>
+      <p>Unlock batch processing and larger file limits with a small one‑time payment of $2. All future Pro features are included.</p>
+      <a href="https://buy.stripe.com/test_cNi00bbCe5e1dKBdeh5os00" class="stripe-link" target="_blank">Pay $2 via Stripe</a>
       <button id="closeModal" class="close-btn">Close</button>
     </div>
   </div>
@@ -495,7 +490,8 @@
        data-ad-format="auto"
        data-full-width-responsive="true"></ins>
 
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXX" crossorigin="anonymous"></script>
+  <!-- Google AdSense: asynchronous load of the ad library. -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4695148041573402" crossorigin="anonymous"></script>
   <script>
   // Google AdSense loader
   (adsbygoogle = window.adsbygoogle || []).push({});
@@ -654,15 +650,7 @@
           preset.q = isNaN(qVal) ? 0.9 : qVal / 100;
         }
     const keep = document.getElementById('keepAspect').checked;
-    // Determine watermark state. The watermark checkbox indicates the desire to
-    // remove the watermark (checked means remove). Without a pro token,
-    // watermark removal is not allowed, so watermarkEnabled remains true.
-    const removeWatermark = document.getElementById('watermark').checked;
     const token = localStorage.getItem('unlockToken') || '';
-    let watermarkEnabled = true;
-    if (token) {
-      watermarkEnabled = !removeWatermark;
-    }
 
     // Free limit enforcement client-side: 1 file and watermark must remain
     if (!token && files.length > 1) {
@@ -678,7 +666,7 @@
     form.append('fmt', preset.fmt);
     form.append('q', preset.q);
     form.append('keepAspect', keep ? '1' : '0');
-    form.append('watermark', watermarkEnabled ? '1' : '0');
+    // Watermark parameter removed; images are never watermarked
     if (token) form.append('token', token);
     const res = await fetch('/process', { method: 'POST', body: form });
     if (!res.ok) {
@@ -729,54 +717,7 @@
         });
       }
 
-  // Handle attempts to remove the watermark on the free tier. When the user
-  // unchecks the "Remove watermark" box without having unlocked the pro tier,
-  // display a modal prompting them to pay. After showing the modal, revert
-  // the checkbox state so that free images always have a watermark.
-  (function() {
-    const wmCheckbox = document.getElementById('watermark');
-    const modal = document.getElementById('proModal');
-    const closeBtn = document.getElementById('closeModal');
-    function hasProToken() {
-      const token = localStorage.getItem('unlockToken');
-      return !!token;
-    }
-    if (wmCheckbox && modal && closeBtn) {
-      // Force the checkbox into an unchecked state on load to avoid
-      // accidental triggers caused by browsers persisting form state across
-      // navigations. Without this, some mobile browsers may remember the
-      // previously checked state and immediately fire the change handler.
-      wmCheckbox.checked = false;
-      // Ensure the modal is hidden on initial load. In some cases the hidden
-      // class may be lost due to cached state. Adding it here re-applies
-      // the hidden class so the overlay does not appear until explicitly
-      // triggered by the user.
-      modal.classList.add('hidden');
-      wmCheckbox.addEventListener('change', () => {
-        // If pro is unlocked or the checkbox is disabled (already unlocked), do nothing.
-        if (hasProToken() || wmCheckbox.disabled) {
-          return;
-        }
-        /*
-         * The remove watermark toggle is unchecked by default on the free tier. When
-         * a user checks the box (wmCheckbox.checked === true) they are attempting
-         * to remove the watermark. On free accounts this is not allowed, so we
-         * show the upgrade modal and immediately revert the checkbox back to
-         * unchecked. We do not trigger the modal when the user is simply
-         * toggling back to unchecked (leaving the watermark in place).
-         */
-        if (wmCheckbox.checked) {
-          modal.classList.remove('hidden');
-          // Revert the checkbox so the watermark remains enabled
-          wmCheckbox.checked = false;
-        }
-      });
-      // Close modal event
-      closeBtn.addEventListener('click', () => {
-        modal.classList.add('hidden');
-      });
-    }
-  })();
+  /* Watermark removal handling removed */
   </script>
 </body>
 </html>
