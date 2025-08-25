@@ -72,8 +72,11 @@ async function tokenIsValid(token) {
   return memoryTokenSet.has(token);
 }
 
-// Multer for handling file uploads (20MB per file)
-const upload = multer({ limits: { fileSize: 20 * 1024 * 1024 } });
+// Multer for handling file uploads. Increase the per‑file size limit to 50 MB to
+// accommodate large images captured on modern smartphones. Without this some
+// mobile uploads may exceed the previous 20 MB limit and cause a "processing"
+// error on the client. Higher limit helps avoid failures on mobile.
+const upload = multer({ limits: { fileSize: 50 * 1024 * 1024 } });
 
 // Basic rate limiting: 300 requests per hour per IP
 app.use(rateLimit({ windowMs: 60 * 60 * 1000, max: 300 }));
@@ -205,15 +208,24 @@ app.post('/process', upload.array('files'), async (req, res) => {
           finalW = Math.round(h * aspect);
         }
       }
-      // Increase watermark band height for better visibility. It will never
-      // exceed the height of the output image.
-      const wmHeight = Math.min(80, finalH);
+      // Determine the watermark band height as roughly 10% of the final image
+      // height. This value is clamped between 40px and the entire image height
+      // to ensure the watermark is both visible and proportionally scaled on
+      // small and large images. This makes the free‑tier watermark more
+      // prominent, as requested.
+      // Compute watermark band height. Use 15% of the final height with a minimum of
+      // 80px. This yields a larger band for better legibility on free images.
+      const wmHeight = Math.max(80, Math.min(finalH, Math.round(finalH * 0.15)));
       const wmWidth = finalW;
-      // Generate watermark SVG. Use a larger font size and adjust padding to
-      // ensure the text remains legible on small images. The text is white
-      // with a subtle dark stroke so it shows up against both light and dark
-      // backgrounds.
-      const svg = `<svg width=\"${wmWidth}\" height=\"${wmHeight}\" xmlns=\"http://www.w3.org/2000/svg\"><text x=\"${wmWidth - 20}\" y=\"${wmHeight - 10}\" text-anchor=\"end\" font-size=\"24\" fill=\"rgba(255,255,255,0.85)\" style=\"font-family:Arial; paint-order: stroke; stroke: rgba(0,0,0,0.6); stroke-width: 2px;\">etsyresize.com</text></svg>`;
+      // Scale the font size relative to the watermark band. Increase the ratio to
+      // 0.5 and raise the minimum font size to 16px so the text fills more of
+      // the band.
+      const fontSize = Math.max(16, Math.round(wmHeight * 0.5));
+      // Build the watermark SVG. Place the text near the lower right corner
+      // with a small margin, and use a white fill with a dark stroke for
+      // contrast. Using a dynamic font size helps ensure legibility across
+      // different image dimensions.
+      const svg = `<svg width="${wmWidth}" height="${wmHeight}" xmlns="http://www.w3.org/2000/svg"><text x="${wmWidth - 20}" y="${wmHeight - 10}" text-anchor="end" font-size="${fontSize}" fill="rgba(255,255,255,0.85)" style="font-family:Arial; paint-order: stroke; stroke: rgba(0,0,0,0.6); stroke-width: 2px;">etsyresize.com</text></svg>`;
       img = img.composite([{ input: Buffer.from(svg), gravity: 'south' }]);
     }
     if (fmt === 'png') {
