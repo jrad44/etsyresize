@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Update the page title to reflect the new brand name. -->
   <title>ResizedImage – Marketplace Image Resizer</title>
+  <!-- Cropper.js styles for the cropping overlay -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css">
   <style>
     :root {
       --primary-bg: #7757ff;
@@ -279,6 +281,101 @@
       background: linear-gradient(90deg, #0cd45d, #17ba64);
       color: #ffffff;
     }
+
+    /* Crop button styling */
+    .crop-btn {
+      width: 100%;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(90deg, #7b61ff, #9a7aff);
+      color: #ffffff;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .crop-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Crop modal overlay */
+    #cropModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    #cropModal.open {
+      display: flex;
+    }
+    #cropModal .modal-content {
+      background: var(--primary-fg);
+      color: var(--text-color);
+      padding: 16px;
+      border-radius: 12px;
+      max-width: 95%;
+      max-height: 95%;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    #cropCanvasWrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    #cropControls {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    #cropControls label {
+      font-size: 0.85rem;
+      display: flex;
+      flex-direction: column;
+    }
+    #cropControls input[type="number"],
+    #cropControls select {
+      padding: 4px;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      width: 80px;
+    }
+    #cropActions {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    #cropActions button {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+    }
+    #cropConfirmBtn {
+      background: linear-gradient(90deg, #0cd45d, #17ba64);
+      color: #ffffff;
+    }
+    #cropResetBtn, #cropCancelBtn {
+      background: var(--card-hover);
+      color: var(--text-color);
+    }
     .pro-bar {
       width: 100%;
       margin-top: 16px;
@@ -546,6 +643,8 @@
 
   <!-- Action buttons -->
   <button id="processBtn" class="process-btn" disabled>Process &amp; Download</button>
+  <!-- New crop button: allows users to crop the currently selected image before resizing -->
+  <button id="cropBtn" class="crop-btn" disabled>Crop Image</button>
   <button id="buyBtn" class="pro-bar">
     <span>Unlock Pro Features</span>
     <span class="features">Batch processing • Up to 50 files • $2.00</span>
@@ -713,6 +812,16 @@
       }
       // Toggle the ready class to control the green gradient styling
       processBtnEl.classList.toggle('ready', ready);
+    }
+
+    // Enable or disable the crop button. Crop only works for a single file at a time.
+    const cropBtnEl = document.getElementById('cropBtn');
+    if (cropBtnEl) {
+      if (files.length === 1) {
+        cropBtnEl.removeAttribute('disabled');
+      } else {
+        cropBtnEl.setAttribute('disabled', '');
+      }
     }
   }
 
@@ -884,7 +993,224 @@
     <a href="/blog" id="footerBlogLink">Blog</a>
   </footer>
 
+  <!-- Crop modal overlay. Hidden by default and toggled by JS -->
+  <div id="cropModal">
+    <div class="modal-content">
+      <h3 style="margin-bottom:8px;font-size:1.25rem;font-weight:bold;">Crop Image</h3>
+      <div id="cropCanvasWrapper">
+        <img id="cropImage" src="" alt="Image to crop" style="max-width:100%;max-height:100%;">
+      </div>
+      <!-- Controls for aspect ratio, width/height, zoom -->
+      <div id="cropControls">
+        <label>Aspect Ratio
+          <select id="cropAspect">
+            <option value="free">Freeform</option>
+            <option value="1:1">1:1</option>
+            <option value="4:3">4:3</option>
+            <option value="3:2">3:2</option>
+            <option value="16:9">16:9</option>
+            <option value="9:16">9:16</option>
+            <option value="5:4">5:4</option>
+          </select>
+        </label>
+        <label>Width (px)
+          <input type="number" id="cropWidth" min="1" value="0">
+        </label>
+        <label>Height (px)
+          <input type="number" id="cropHeight" min="1" value="0">
+        </label>
+        <button type="button" id="zoomOutBtn" style="padding:4px 8px;border:1px solid var(--card-border);border-radius:6px;background:#f5f5ff;">-</button>
+        <span id="zoomPercent" style="min-width:40px;text-align:center;">100%</span>
+        <button type="button" id="zoomInBtn" style="padding:4px 8px;border:1px solid var(--card-border);border-radius:6px;background:#f5f5ff;">+</button>
+        <button type="button" id="rotateLeftBtn" style="padding:4px 8px;border:1px solid var(--card-border);border-radius:6px;background:#f5f5ff;">⟲</button>
+        <button type="button" id="rotateRightBtn" style="padding:4px 8px;border:1px solid var(--card-border);border-radius:6px;background:#f5f5ff;">⟳</button>
+        <button type="button" id="flipHBtn" style="padding:4px 8px;border:1px solid var(--card-border);border-radius:6px;background:#f5f5ff;">⇋</button>
+        <button type="button" id="flipVBtn" style="padding:4px 8px;border:1px solid var(--card-border);border-radius:6px;background:#f5f5ff;">⇅</button>
+      </div>
+      <div id="cropActions">
+        <button id="cropConfirmBtn" type="button">Apply Crop</button>
+        <button id="cropResetBtn" type="button">Reset</button>
+        <button id="cropCancelBtn" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Load social presets and dynamic preset rendering -->
   <script src="/presets.js"></script>
+    <!-- Cropper.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
+    <!-- Cropping functionality -->
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const cropModal = document.getElementById('cropModal');
+        const cropImgEl = document.getElementById('cropImage');
+        const cropBtnEl = document.getElementById('cropBtn');
+        const cropAspect = document.getElementById('cropAspect');
+        const cropWidth = document.getElementById('cropWidth');
+        const cropHeight = document.getElementById('cropHeight');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const rotateLeftBtn = document.getElementById('rotateLeftBtn');
+        const rotateRightBtn = document.getElementById('rotateRightBtn');
+        const flipHBtn = document.getElementById('flipHBtn');
+        const flipVBtn = document.getElementById('flipVBtn');
+        const zoomPercent = document.getElementById('zoomPercent');
+        const cropConfirm = document.getElementById('cropConfirmBtn');
+        const cropReset = document.getElementById('cropResetBtn');
+        const cropCancel = document.getElementById('cropCancelBtn');
+        let cropper = null;
+        let scaleX = 1;
+        let scaleY = 1;
+        // Helper to update size inputs and zoom percent
+        function updateCropInfo() {
+          if (!cropper) return;
+          const data = cropper.getData(true);
+          cropWidth.value = Math.round(data.width);
+          cropHeight.value = Math.round(data.height);
+          const zoomLevel = Math.round(cropper.getZoomRatio() * 100);
+          zoomPercent.textContent = zoomLevel + '%';
+        }
+        // Open cropping modal when crop button clicked
+        if (cropBtnEl) {
+          cropBtnEl.addEventListener('click', () => {
+            if (!files || files.length !== 1) {
+              alert('Please upload a single image to crop.');
+              return;
+            }
+            const file = files[0];
+            const reader = new FileReader();
+            reader.onload = () => {
+              cropImgEl.src = reader.result;
+              // Wait for image to load before initializing Cropper
+              cropImgEl.onload = () => {
+                // Destroy old cropper if exists
+                if (cropper) {
+                  cropper.destroy();
+                  cropper = null;
+                  scaleX = 1;
+                  scaleY = 1;
+                }
+                cropper = new Cropper(cropImgEl, {
+                  viewMode: 1,
+                  dragMode: 'move',
+                  autoCropArea: 0.8,
+                  background: false,
+                  responsive: true,
+                  checkOrientation: false,
+                  guides: true,
+                  ready() {
+                    updateCropInfo();
+                  },
+                  cropend() {
+                    updateCropInfo();
+                  },
+                  zoom() {
+                    updateCropInfo();
+                  }
+                });
+                updateCropInfo();
+                cropModal.classList.add('open');
+              };
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+        // Aspect ratio change
+        if (cropAspect) {
+          cropAspect.addEventListener('change', () => {
+            if (!cropper) return;
+            const val = cropAspect.value;
+            if (val === 'free') {
+              cropper.setAspectRatio(NaN);
+            } else {
+              const parts = val.split(':');
+              const w = parseFloat(parts[0]);
+              const h = parseFloat(parts[1]);
+              if (w && h) cropper.setAspectRatio(w / h);
+            }
+          });
+        }
+        // Zoom controls
+        function adjustZoom(delta) {
+          if (!cropper) return;
+          cropper.zoom(delta);
+          updateCropInfo();
+        }
+        if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => adjustZoom(-0.1));
+        if (zoomInBtn) zoomInBtn.addEventListener('click', () => adjustZoom(0.1));
+        // Rotate
+        if (rotateLeftBtn) rotateLeftBtn.addEventListener('click', () => {
+          if (cropper) cropper.rotate(-90);
+          updateCropInfo();
+        });
+        if (rotateRightBtn) rotateRightBtn.addEventListener('click', () => {
+          if (cropper) cropper.rotate(90);
+          updateCropInfo();
+        });
+        // Flip horizontal / vertical
+        if (flipHBtn) flipHBtn.addEventListener('click', () => {
+          if (cropper) {
+            scaleX = scaleX * -1;
+            cropper.scaleX(scaleX);
+          }
+        });
+        if (flipVBtn) flipVBtn.addEventListener('click', () => {
+          if (cropper) {
+            scaleY = scaleY * -1;
+            cropper.scaleY(scaleY);
+          }
+        });
+        // Reset crop
+        if (cropReset) cropReset.addEventListener('click', () => {
+          if (cropper) cropper.reset();
+          scaleX = 1;
+          scaleY = 1;
+          updateCropInfo();
+        });
+        // Cancel
+        if (cropCancel) cropCancel.addEventListener('click', () => {
+          if (cropper) {
+            cropper.destroy();
+            cropper = null;
+          }
+          cropModal.classList.remove('open');
+        });
+        // Apply crop
+        if (cropConfirm) cropConfirm.addEventListener('click', () => {
+          if (!cropper) return;
+          // Get cropped image as blob
+          cropper.getCroppedCanvas({}).toBlob(blob => {
+            if (blob) {
+              const file = files[0];
+              // Determine extension and base name
+              const parts = file.name.split('.');
+              const ext = parts.length > 1 ? parts.pop() : 'jpg';
+              const baseName = parts.join('.') || 'cropped';
+              const newFileName = `${baseName}_cropped.${ext}`;
+              const newFile = new File([blob], newFileName, { type: file.type });
+              files = [ newFile ];
+              renderList();
+            }
+            // Close modal and destroy cropper
+            cropper.destroy();
+            cropper = null;
+            cropModal.classList.remove('open');
+          }, files[0].type || 'image/jpeg');
+        });
+        // Sync width/height inputs with cropper data; editing width recalculates height when aspect ratio locked
+        function syncInputsToCropper() {
+          if (!cropper) return;
+          const w = parseInt(cropWidth.value, 10);
+          const h = parseInt(cropHeight.value, 10);
+          if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
+            const data = cropper.getData();
+            cropper.setData({ x: data.x, y: data.y, width: w, height: h });
+            updateCropInfo();
+          }
+        }
+        if (cropWidth) cropWidth.addEventListener('change', syncInputsToCropper);
+        if (cropHeight) cropHeight.addEventListener('change', syncInputsToCropper);
+      });
+    </script>
 </body>
 </html>
