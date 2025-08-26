@@ -361,10 +361,11 @@
     <option value='{"w":1080,"h":1080,"fmt":"jpeg","q":0.8,"name":"Mercari"}'>Mercari</option>
   </select>
 
-  <!-- Preset cards -->
+  <!-- Marketplace presets (static). You can remove or modify these if not needed. -->
   <div class="preset-section">
     <h2>Marketplace Presets</h2>
-    <div class="preset-grid">
+    <div class="preset-grid" id="marketplaceGrid">
+      <!-- Existing marketplace presets defined via data-value for backward compatibility -->
       <div class="preset-card selected" data-value='{"w":2000,"h":2000,"fmt":"jpeg","q":0.82,"name":"Amazon"}'>
         <div class="icon">🛒</div>
         <div class="title">Amazon</div>
@@ -393,28 +394,15 @@
         <div class="quality">JPEG • 80%</div>
         <div class="checkmark">✔</div>
       </div>
-      <div class="preset-card" data-value='{"w":0,"h":0,"fmt":"jpeg","q":0.9,"name":"Custom"}'>
-        <div class="icon">⚙️</div>
-        <div class="title">Custom</div>
-        <div class="size">Any</div>
-        <div class="quality">Custom</div>
-        <div class="checkmark">✔</div>
-      </div>
-  <div class="preset-card" data-value='{"w":2000,"h":2000,"fmt":"jpeg","q":0.85,"name":"Poshmark"}'>
-    <div class="icon">🎀</div>
-    <div class="title">Poshmark</div>
-    <div class="size">2000 × 2000</div>
-    <div class="quality">JPEG • 85%</div>
-    <div class="checkmark">✔</div>
-  </div>
-  <div class="preset-card" data-value='{"w":1080,"h":1080,"fmt":"jpeg","q":0.8,"name":"Mercari"}'>
-    <div class="icon">📱</div>
-    <div class="title">Mercari</div>
-    <div class="size">1080 × 1080</div>
-    <div class="quality">JPEG • 80%</div>
-    <div class="checkmark">✔</div>
-  </div>
     </div>
+  </div>
+
+  <!-- Social media presets loaded dynamically from social-image-presets-2025.json -->
+  <div class="preset-section">
+    <h2>Social Media Presets</h2>
+    <label for="platformSelect">Platform:</label>
+    <select id="platformSelect" style="margin-left:8px;"></select>
+    <div id="socialPresetGrid" class="preset-grid"></div>
   </div>
 
   <!-- Options -->
@@ -638,6 +626,16 @@
     } catch (e) {
       preset = { w: 0, h: 0, fmt: 'jpeg', q: 0.9, name: 'Custom' };
     }
+    // Override preset with a selected social preset if one is chosen
+    const socialValEl = document.getElementById('selectedSocialPreset');
+    if (socialValEl && socialValEl.value) {
+      try {
+        const sp = JSON.parse(socialValEl.value);
+        preset = sp;
+      } catch (e) {
+        // ignore parse errors
+      }
+    }
     // If custom, override with user-provided values
         if (preset.name === 'Custom') {
           const wVal = parseInt(customW.value, 10);
@@ -719,5 +717,12 @@
 
   /* Watermark removal handling removed */
   </script>
+  <!-- Blog link footer -->
+  <footer style="margin-top:48px;text-align:center;">
+    <a href="/blog" id="footerBlogLink">Blog</a>
+  </footer>
+
+  <!-- Load social presets and dynamic preset rendering -->
+  <script src="/presets.js"></script>
 </body>
 </html>
