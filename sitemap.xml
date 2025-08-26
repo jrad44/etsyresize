@@ -44,4 +44,18 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+
+      <!-- New tools -->
+      <url>
+        <loc>https://resizedimage.com/pdf</loc>
+        <lastmod>2025-08-25</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+      </url>
+      <url>
+        <loc>https://resizedimage.com/background</loc>
+        <lastmod>2025-08-25</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+      </url>
 </urlset>

@@ -230,6 +230,16 @@ const blogMap = {
   'difference-between-resizing-and-compressing': 'difference-between-resizing-and-compressing.html'
 };
 
+    // Serve PDF and Background tool pages without .html extension
+    app.get('/pdf', (req, res) => {
+      const filePath = path.join(__dirname, 'pdf.html');
+      return res.sendFile(filePath);
+    });
+    app.get('/background', (req, res) => {
+      const filePath = path.join(__dirname, 'background.html');
+      return res.sendFile(filePath);
+    });
+
 app.get('/blog/:slug', (req, res, next) => {
   const slug = req.params.slug;
   const file = blogMap[slug];

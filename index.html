@@ -133,6 +133,80 @@
       display: block;
     }
 
+        /* Navigation bar styling */
+        .menu-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 8px 0;
+          background: #ffffff;
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+        }
+        .menu-bar .logo a {
+          font-size: 1.2rem;
+          font-weight: bold;
+        }
+        .menu-items {
+          display: flex;
+          gap: 16px;
+          list-style: none;
+          margin: 0;
+          padding: 0;
+        }
+        .menu-items li a {
+          text-decoration: none;
+          color: var(--text-color);
+          font-size: 0.9rem;
+          padding: 4px 8px;
+        }
+        .menu-items li a.active {
+          border-bottom: 2px solid var(--primary-bg);
+          color: var(--primary-bg);
+        }
+        .hamburger {
+          display: none;
+          background: none;
+          border: none;
+          font-size: 1.4rem;
+          cursor: pointer;
+          line-height: 1;
+        }
+        .pro-btn {
+          background: var(--pro-bg);
+          color: var(--pro-fg);
+          border-radius: 8px;
+          padding: 6px 12px;
+          border: none;
+          font-size: 0.9rem;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .pro-btn:hover {
+          background: var(--pro-hover);
+        }
+        @media (max-width: 640px) {
+          .menu-items {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            background: #ffffff;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            padding: 8px 0;
+            border-top: 1px solid var(--card-border);
+          }
+          .menu-items.open {
+            display: flex;
+          }
+          .hamburger {
+            display: block;
+          }
+        }
+
         /* Style the social presets selectors to match card aesthetics */
         #platformSelect, #placementSelect {
           border: 1px solid var(--card-border);
@@ -334,7 +408,20 @@
     }
   </style>
 </head>
-<body>
+    <body>
+    <!-- Global Navigation Bar -->
+    <nav id="menuBar" class="menu-bar" role="navigation">
+      <div class="logo">
+        <a href="/" style="text-decoration:none;font-weight:bold;font-size:1.2rem;color:var(--text-color);">ResizedImage</a>
+      </div>
+      <button id="hamburger" class="hamburger" aria-label="Toggle navigation">☰</button>
+      <ul id="menuItems" class="menu-items">
+        <li><a href="/" id="navResizer">Image Resizer</a></li>
+        <li><a href="/pdf" id="navPdf">PDF Tool</a></li>
+        <li><a href="/background" id="navBg">Background Remover</a></li>
+      </ul>
+      <button id="navProBtn" class="pro-btn">Unlock&nbsp;Pro&nbsp;($2)</button>
+    </nav>
   <!-- Update the main heading and description for the new brand name. -->
   <h1>ResizedImage – Marketplace Image Resizer</h1>
   <p>Instantly resize your product photos to fit popular marketplaces like Amazon, Etsy, Shopify and more. No signup required. The free version allows one image up to 10 MB. Unlock batch resizing and larger file limits for a small one‑time fee.</p>
@@ -749,6 +836,49 @@
 
   /* Watermark removal handling removed */
   </script>
+
+    <!-- Navigation interactivity and Pro integration -->
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const menuItems = document.getElementById('menuItems');
+        const hamburger = document.getElementById('hamburger');
+        if (hamburger && menuItems) {
+          hamburger.addEventListener('click', () => {
+            menuItems.classList.toggle('open');
+          });
+        }
+        // Highlight active nav item based on current path
+        const path = window.location.pathname.replace(/\/$/, '');
+        const navResizer = document.getElementById('navResizer');
+        const navPdf = document.getElementById('navPdf');
+        const navBg = document.getElementById('navBg');
+        if (path === '' || path === '/index.html' || path === '/') {
+          navResizer && navResizer.classList.add('active');
+        } else if (path.startsWith('/pdf')) {
+          navPdf && navPdf.classList.add('active');
+        } else if (path.startsWith('/background')) {
+          navBg && navBg.classList.add('active');
+        }
+        // Pro button navigation
+        const navProBtn = document.getElementById('navProBtn');
+        if (navProBtn) {
+          navProBtn.addEventListener('click', () => {
+            window.location.href = 'https://buy.stripe.com/test_cNi00bbCe5e1dKBdeh5os00';
+          });
+        }
+        // Hide old buy button if present
+        const oldBtn = document.getElementById('buyBtn');
+        if (oldBtn) {
+          oldBtn.style.display = 'none';
+        }
+        // Pro state check: hide navProBtn if already unlocked
+        fetch('/me', { credentials: 'include' }).then(res => res.json()).then(j => {
+          if (j && j.pro && navProBtn) {
+            navProBtn.style.display = 'none';
+          }
+        }).catch(() => {});
+      });
+    </script>
   <!-- Blog link footer -->
   <footer style="margin-top:48px;text-align:center;">
     <a href="/blog" id="footerBlogLink">Blog</a>

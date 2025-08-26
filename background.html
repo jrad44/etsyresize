@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Background Remover – ResizedImage</title>
+  <style>
+    :root {
+      --primary-bg: #7757ff;
+      --primary-bg-light: #8163ff;
+      --primary-fg: #ffffff;
+      --card-border: #e0e0e0;
+      --selected-border: #7b61ff;
+      --pro-bg: #f7a400;
+      --pro-fg: #ffffff;
+      --pro-hover: #f0a818;
+      --text-color: #333333;
+      --subtext-color: #666666;
+    }
+    body {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      max-width: 960px;
+      margin: 24px auto;
+      padding: 0 16px;
+      color: var(--text-color);
+    }
+    .menu-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      background: #ffffff;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    .menu-bar .logo a {
+      font-size: 1.2rem;
+      font-weight: bold;
+      text-decoration: none;
+      color: var(--text-color);
+    }
+    .menu-items {
+      display: flex;
+      gap: 16px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .menu-items li a {
+      text-decoration: none;
+      color: var(--text-color);
+      font-size: 0.9rem;
+      padding: 4px 8px;
+    }
+    .menu-items li a.active {
+      border-bottom: 2px solid var(--primary-bg);
+      color: var(--primary-bg);
+    }
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .pro-btn {
+      background: var(--pro-bg);
+      color: var(--pro-fg);
+      border-radius: 8px;
+      padding: 6px 12px;
+      border: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .pro-btn:hover {
+      background: var(--pro-hover);
+    }
+    @media (max-width: 640px) {
+      .menu-items {
+        display: none;
+        flex-direction: column;
+        gap: 8px;
+        background: #ffffff;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        padding: 8px 0;
+        border-top: 1px solid var(--card-border);
+      }
+      .menu-items.open {
+        display: flex;
+      }
+      .hamburger {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav id="menuBar" class="menu-bar" role="navigation">
+    <div class="logo"><a href="/">ResizedImage</a></div>
+    <button id="hamburger" class="hamburger" aria-label="Toggle navigation">☰</button>
+    <ul id="menuItems" class="menu-items">
+      <li><a href="/" id="navResizer">Image Resizer</a></li>
+      <li><a href="/pdf" id="navPdf">PDF Tool</a></li>
+      <li><a href="/background" id="navBg">Background Remover</a></li>
+    </ul>
+    <button id="navProBtn" class="pro-btn">Unlock&nbsp;Pro&nbsp;($2)</button>
+  </nav>
+  <main style="margin-top:24px;">
+    <h1 style="font-size:1.6rem;font-weight:bold;">Image Background Remover</h1>
+    <p style="margin-top:12px;font-size:1rem;">Remove the background from your images instantly. This feature is under construction.</p>
+  </main>
+  <footer style="margin-top:48px;text-align:center;">
+    <a href="/blog" id="footerBlogLink">Blog</a>
+  </footer>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const menuItems = document.getElementById('menuItems');
+      const hamburger = document.getElementById('hamburger');
+      if (hamburger && menuItems) {
+        hamburger.addEventListener('click', () => {
+          menuItems.classList.toggle('open');
+        });
+      }
+      const navBg = document.getElementById('navBg');
+      navBg && navBg.classList.add('active');
+      const navProBtn = document.getElementById('navProBtn');
+      if (navProBtn) {
+        navProBtn.addEventListener('click', () => {
+          window.location.href = 'https://buy.stripe.com/test_cNi00bbCe5e1dKBdeh5os00';
+        });
+      }
+      fetch('/me', { credentials: 'include' }).then(res => res.json()).then(j => {
+        if (j && j.pro && navProBtn) {
+          navProBtn.style.display = 'none';
+        }
+      }).catch(() => {});
+    });
+  </script>
+</body>
+</html>
