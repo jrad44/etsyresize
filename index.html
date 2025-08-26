@@ -403,8 +403,10 @@
         <div class="size">1600 × 1600</div>
         <div class="quality">JPEG • 80%</div>
         <div class="checkmark">✔</div>
-      </div>
-    </div>
+          </div>
+        </div>
+        <!-- Info about the selected marketplace preset (width × height and aspect ratio) -->
+        <div id="marketPresetInfo" style="margin-top:8px;font-size:0.9rem;color:var(--subtext-color);"></div>
   </div>
 
   <!-- Social media presets loaded dynamically from social-image-presets-2025.json -->
@@ -717,7 +719,32 @@
       presetSelect.value = val;
       // Trigger change on the select to update custom inputs
       presetSelect.dispatchEvent(new Event('change'));
+      // Update the marketplace info box if this card corresponds to a marketplace preset
+      try {
+        const infoEl = document.getElementById('marketPresetInfo');
+        if (infoEl && val) {
+          const parsed = JSON.parse(val);
+          if (parsed && parsed.w && parsed.h) {
+            const w = parsed.w;
+            const h = parsed.h;
+            const gcd = (a,b) => b === 0 ? a : gcd(b, a % b);
+            const g = gcd(w, h);
+            const aspect = (w / g) + ':' + (h / g);
+            infoEl.textContent = `${w} × ${h} (aspect ${aspect})`;
+          }
+        }
+      } catch (e) {
+        // ignore parse errors from non-JSON data-value entries
+      }
     });
+  });
+
+  // Initialize marketplace preset info on page load by simulating a click on the selected card
+  window.addEventListener('DOMContentLoaded', () => {
+    const initialCard = document.querySelector('#marketplaceGrid .preset-card.selected') || document.querySelector('#marketplaceGrid .preset-card');
+    if (initialCard) {
+      initialCard.click();
+    }
   });
 
       // Update quality percentage label when the range slider changes
