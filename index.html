@@ -1426,7 +1426,11 @@ window.renderList = function renderList() {
               cropRect.x = (pw - cropRect.width) / 2;
               cropRect.y = (ph - cropRect.height) / 2;
               updateCropBox();
+              // Show modal and prevent body scrolling so the page underneath doesn’t scroll
               cropModal.classList.add('open');
+              document.body.style.overflow = 'hidden';
+              // Ensure viewport is at top to reveal the preview area
+              window.scrollTo(0, 0);
             };
             cropImgEl.src = reader.result;
           };
@@ -1451,7 +1455,9 @@ window.renderList = function renderList() {
       });
       // Cancel
       if (cropCancel) cropCancel.addEventListener('click', () => {
+        // Hide modal and restore page scrolling
         cropModal.classList.remove('open');
+        document.body.style.overflow = '';
       });
       // Apply crop
       if (cropConfirm) cropConfirm.addEventListener('click', () => {
@@ -1487,7 +1493,9 @@ window.renderList = function renderList() {
             files = [newFile];
             renderList();
           }
+          // Hide modal and restore page scrolling after applying crop
           cropModal.classList.remove('open');
+          document.body.style.overflow = '';
         }, files[0].type || 'image/jpeg');
       });
     });
