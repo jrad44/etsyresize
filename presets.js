@@ -10,6 +10,17 @@
   if (!platformSelect || !grid) {
     return;
   }
+  // Remove any legacy placement dropdown and label if present from previous versions.
+  {
+    const oldPlacement = document.getElementById('placementSelect');
+    if (oldPlacement) {
+      const prev = oldPlacement.previousElementSibling;
+      if (prev && prev.tagName && prev.tagName.toLowerCase() === 'label' && /placement/i.test(prev.textContent)) {
+        prev.remove();
+      }
+      oldPlacement.remove();
+    }
+  }
   // We'll render clickable preset cards inside `socialPresetGrid` instead of a second dropdown.
   // Helper to clear existing cards and track currently selected one.
   let currentCard = null;
