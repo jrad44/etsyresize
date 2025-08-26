@@ -7,24 +7,12 @@
 (() => {
   const platformSelect = document.getElementById('platformSelect');
   const grid = document.getElementById('socialPresetGrid');
-  if (!platformSelect) {
+  if (!platformSelect || !grid) {
     return;
   }
-  // Hide the old card grid by default; we'll use dropdowns instead
-  if (grid) {
-    grid.style.display = 'none';
-  }
-  // Create placement label and select for second-level presets
-  const placementLabel = document.createElement('label');
-  placementLabel.setAttribute('for', 'placementSelect');
-  placementLabel.textContent = 'Placement:';
-  placementLabel.style.marginLeft = '12px';
-  const placementSelect = document.createElement('select');
-  placementSelect.id = 'placementSelect';
-  placementSelect.style.marginLeft = '8px';
-  // Insert placement controls after the platform select
-  platformSelect.insertAdjacentElement('afterend', placementSelect);
-  platformSelect.insertAdjacentElement('afterend', placementLabel);
+  // We'll render clickable preset cards inside `socialPresetGrid` instead of a second dropdown.
+  // Helper to clear existing cards and track currently selected one.
+  let currentCard = null;
   // Helper to ensure a hidden input exists for storing the selected preset
   function ensureHidden() {
     let hidden = document.getElementById('selectedSocialPreset');
@@ -58,7 +46,7 @@
       wInput.value = spec.w;
       hInput.value = spec.h;
     }
-    // Lock aspect ratio by checking the keepAspect checkbox
+    // Lock aspect ratio by unchecking the keepAspect checkbox (we want cropping by default for presets)
     if (keepAspect) {
       keepAspect.checked = false;
     }
@@ -83,47 +71,69 @@
     .then(rawData => {
       const data = rawData && typeof rawData === 'object' ? rawData : {};
       const platforms = Object.keys(data).sort();
-      // Populate platform dropdown
+      // Populate the platform dropdown
       platforms.forEach(platform => {
         const opt = document.createElement('option');
         opt.value = platform;
         opt.textContent = platform;
         platformSelect.appendChild(opt);
       });
-      // Change handler for platform select
-      function onPlatformChange() {
-        const platform = platformSelect.value;
-        placementSelect.innerHTML = '';
-        // Populate placement select
+      // Render a grid of preset cards for the selected platform
+      function renderGrid(platform) {
+        grid.innerHTML = '';
         const placements = data[platform] ? Object.keys(data[platform]) : [];
-        placements.forEach(pl => {
-          const o = document.createElement('option');
-          o.value = pl;
-          // Human friendly: replace underscores with spaces and capitalize words
-          o.textContent = pl.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-          placementSelect.appendChild(o);
+        placements.forEach((pl, idx) => {
+          const spec = data[platform][pl];
+          const card = document.createElement('div');
+          card.className = 'preset-card';
+          card.dataset.platform = platform;
+          card.dataset.placement = pl;
+          // Build human-friendly label
+          const label = pl.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          // Create inner structure similar to marketplace presets
+          const titleDiv = document.createElement('div');
+          titleDiv.className = 'title';
+          titleDiv.textContent = label;
+          const sizeDiv = document.createElement('div');
+          sizeDiv.className = 'size';
+          sizeDiv.textContent = `${spec.w} × ${spec.h}`;
+          const qualityDiv = document.createElement('div');
+          qualityDiv.className = 'quality';
+          const aspectText = spec.aspect || `${spec.w}:${spec.h}`;
+          qualityDiv.textContent = `Aspect ${aspectText}`;
+          const checkDiv = document.createElement('div');
+          checkDiv.className = 'checkmark';
+          checkDiv.textContent = '✔';
+          card.appendChild(titleDiv);
+          card.appendChild(sizeDiv);
+          card.appendChild(qualityDiv);
+          card.appendChild(checkDiv);
+          // Click handler: apply the preset and highlight selected card
+          card.addEventListener('click', () => {
+            // Remove selection from previous card
+            if (currentCard) currentCard.classList.remove('selected');
+            card.classList.add('selected');
+            currentCard = card;
+            applyPreset(platform, pl, spec);
+          });
+          grid.appendChild(card);
+          // Automatically select the first card
+          if (idx === 0) {
+            setTimeout(() => {
+              card.click();
+            }, 0);
+          }
         });
-        // If there is at least one placement, select the first and apply preset
-        if (placements.length > 0) {
-          placementSelect.value = placements[0];
-          const spec = data[platform][placements[0]];
-          applyPreset(platform, placements[0], spec);
-        }
       }
-      platformSelect.addEventListener('change', onPlatformChange);
-      // Change handler for placement select
-      placementSelect.addEventListener('change', () => {
+      // When platform changes, re-render grid
+      platformSelect.addEventListener('change', () => {
         const platform = platformSelect.value;
-        const placement = placementSelect.value;
-        const spec = data[platform] && data[platform][placement];
-        if (spec) {
-          applyPreset(platform, placement, spec);
-        }
+        renderGrid(platform);
       });
-      // Trigger initial population
+      // Trigger initial render
       if (platforms.length > 0) {
         platformSelect.value = platforms[0];
-        onPlatformChange();
+        renderGrid(platforms[0]);
       }
     })
     .catch(err => {
@@ -146,31 +156,51 @@
         opt.textContent = platform;
         platformSelect.appendChild(opt);
       });
-      function onPlatformChange() {
-        const platform = platformSelect.value;
-        placementSelect.innerHTML = '';
+      function renderGrid(platform) {
+        grid.innerHTML = '';
         const placements = data[platform] ? Object.keys(data[platform]) : [];
-        placements.forEach(pl => {
-          const o = document.createElement('option');
-          o.value = pl;
-          o.textContent = pl.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-          placementSelect.appendChild(o);
+        placements.forEach((pl, idx) => {
+          const spec = data[platform][pl];
+          const card = document.createElement('div');
+          card.className = 'preset-card';
+          card.dataset.platform = platform;
+          card.dataset.placement = pl;
+          const label = pl.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          const titleDiv = document.createElement('div');
+          titleDiv.className = 'title';
+          titleDiv.textContent = label;
+          const sizeDiv = document.createElement('div');
+          sizeDiv.className = 'size';
+          sizeDiv.textContent = `${spec.w} × ${spec.h}`;
+          const qualityDiv = document.createElement('div');
+          qualityDiv.className = 'quality';
+          const aspectText = spec.aspect || `${spec.w}:${spec.h}`;
+          qualityDiv.textContent = `Aspect ${aspectText}`;
+          const checkDiv = document.createElement('div');
+          checkDiv.className = 'checkmark';
+          checkDiv.textContent = '✔';
+          card.appendChild(titleDiv);
+          card.appendChild(sizeDiv);
+          card.appendChild(qualityDiv);
+          card.appendChild(checkDiv);
+          card.addEventListener('click', () => {
+            if (currentCard) currentCard.classList.remove('selected');
+            card.classList.add('selected');
+            currentCard = card;
+            applyPreset(platform, pl, spec);
+          });
+          grid.appendChild(card);
+          if (idx === 0) {
+            setTimeout(() => card.click(), 0);
+          }
         });
-        if (placements.length > 0) {
-          placementSelect.value = placements[0];
-          const spec = data[platform][placements[0]];
-          applyPreset(platform, placements[0], spec);
-        }
       }
-      platformSelect.addEventListener('change', onPlatformChange);
-      placementSelect.addEventListener('change', () => {
+      platformSelect.addEventListener('change', () => {
         const platform = platformSelect.value;
-        const placement = placementSelect.value;
-        const spec = data[platform][placement];
-        applyPreset(platform, placement, spec);
+        renderGrid(platform);
       });
-      // Trigger initial population
+      // Initial render
       platformSelect.value = platforms[0];
-      onPlatformChange();
+      renderGrid(platforms[0]);
     });
 })();
