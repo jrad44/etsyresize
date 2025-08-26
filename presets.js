@@ -37,6 +37,8 @@
     return hidden;
   }
   const hiddenInput = ensureHidden();
+  // Element to display selected preset info
+  const infoEl = document.getElementById('socialPresetInfo');
   // Helper to apply a preset: update hidden input and optionally update the UI
   function applyPreset(platform, placement, spec) {
     const presetObj = {
@@ -65,6 +67,11 @@
     if (presetSelect) {
       presetSelect.value = JSON.stringify({ w: spec.w, h: spec.h, fmt: 'jpeg', q: 0.8, name: `${platform} – ${placement}` });
       presetSelect.dispatchEvent(new Event('change'));
+    }
+    // Update the info element with dimensions and aspect
+    if (infoEl) {
+      const aspectText = spec.aspect || `${spec.w}:${spec.h}`;
+      infoEl.textContent = `${spec.w} × ${spec.h} (aspect ${aspectText})`;
     }
   }
   // Fetch the presets JSON. On failure, fall back to a minimal set

@@ -132,6 +132,16 @@
     .preset-card.selected .checkmark {
       display: block;
     }
+
+        /* Style the social presets selectors to match card aesthetics */
+        #platformSelect, #placementSelect {
+          border: 1px solid var(--card-border);
+          border-radius: 8px;
+          padding: 4px 8px;
+          font-size: 0.9rem;
+          background: #fff;
+          margin-left: 8px;
+        }
     /* Options */
     .options {
       margin-top: 32px;
@@ -402,7 +412,9 @@
     <h2>Social Media Presets</h2>
     <label for="platformSelect">Platform:</label>
     <select id="platformSelect" style="margin-left:8px;"></select>
-    <div id="socialPresetGrid" class="preset-grid"></div>
+        <div id="socialPresetGrid" class="preset-grid"></div>
+        <!-- Display selected social preset details -->
+        <div id="socialPresetInfo" style="margin-top:8px;font-size:0.9rem;color:var(--subtext-color);"></div>
   </div>
 
   <!-- Options -->
