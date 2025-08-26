@@ -717,7 +717,8 @@
           }
         });
       }
-  let files = [];
+  // Declare files as a global variable so it can be accessed by other scripts (e.g., cropper)
+  var files = [];
 
   // Check if unlocked via token in URL or localStorage
   const urlParams = new URLSearchParams(window.location.search);
@@ -791,7 +792,8 @@
     renderList();
   });
 
-  function renderList() {
+// Expose renderList on window so other scripts (cropping) can call it
+window.renderList = function renderList() {
     list.innerHTML = '';
     files.forEach(f => {
       const li = document.createElement('li');
