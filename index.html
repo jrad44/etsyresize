@@ -376,7 +376,7 @@
     <h2>Marketplace Presets</h2>
     <div class="preset-grid" id="marketplaceGrid">
       <!-- Existing marketplace presets defined via data-value for backward compatibility -->
-      <div class="preset-card selected" data-value='{"w":2000,"h":2000,"fmt":"jpeg","q":0.82,"name":"Amazon"}'>
+      <div class="preset-card" data-value='{"w":2000,"h":2000,"fmt":"jpeg","q":0.82,"name":"Amazon"}'>
         <div class="icon">🛒</div>
         <div class="title">Amazon</div>
         <div class="size">2000 × 2000</div>
@@ -739,13 +739,6 @@
     });
   });
 
-  // Initialize marketplace preset info on page load by simulating a click on the selected card
-  window.addEventListener('DOMContentLoaded', () => {
-    const initialCard = document.querySelector('#marketplaceGrid .preset-card.selected') || document.querySelector('#marketplaceGrid .preset-card');
-    if (initialCard) {
-      initialCard.click();
-    }
-  });
 
       // Update quality percentage label when the range slider changes
       if (customQ && qualityValue) {
