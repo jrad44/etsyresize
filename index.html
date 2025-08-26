@@ -24,6 +24,43 @@
       --subtext-color: #666666;
     }
 
+  /* --- Custom cropping interface styles --- */
+  /* Container overlay dims */
+  .dim-overlay {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+  }
+  .crop-box {
+    position: absolute;
+    border: 2px solid var(--selected-border);
+    box-sizing: border-box;
+    background: transparent;
+    cursor: move;
+  }
+  .crop-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--primary-bg);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: all;
+  }
+  .crop-handle.nw { left: 0; top: 0; cursor: nwse-resize; }
+  .crop-handle.ne { left: 100%; top: 0; cursor: nesw-resize; }
+  .crop-handle.sw { left: 0; top: 100%; cursor: nesw-resize; }
+  .crop-handle.se { left: 100%; top: 100%; cursor: nwse-resize; }
+  .crop-handle.n { left: 50%; top: 0; cursor: ns-resize; }
+  .crop-handle.s { left: 50%; top: 100%; cursor: ns-resize; }
+  .crop-handle.w { left: 0; top: 50%; cursor: ew-resize; }
+  .crop-handle.e { left: 100%; top: 50%; cursor: ew-resize; }
+  .rule-line {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.6);
+    pointer-events: none;
+  }
+
     /* Dark theme overrides using CSS variables. When data-theme="dark" is set on
        the document element, these values will override the defaults above to
        switch the palette to a darker scheme. */
@@ -329,7 +366,7 @@
       display: flex;
       flex-direction: column;
     }
-    #cropCanvasWrapper {
+    #cropPreviewArea {
       flex: 1;
       display: flex;
       align-items: center;
@@ -999,8 +1036,8 @@ window.renderList = function renderList() {
   <div id="cropModal">
     <div class="modal-content">
       <h3 style="margin-bottom:8px;font-size:1.25rem;font-weight:bold;">Crop Image</h3>
-      <div id="cropCanvasWrapper">
-        <img id="cropImage" src="" alt="Image to crop" style="max-width:100%;max-height:100%;">
+      <div id="cropPreviewArea" style="position:relative;width:100%;height:60vh;overflow:hidden;">
+        <img id="cropImage" src="" alt="Image to crop" style="max-width:100%;max-height:100%;display:block;">
       </div>
       <!-- Controls for aspect ratio, width/height, zoom -->
       <div id="cropControls">
@@ -1039,180 +1076,421 @@ window.renderList = function renderList() {
 
   <!-- Load social presets and dynamic preset rendering -->
   <script src="/presets.js"></script>
-    <!-- Cropper.js library -->
-    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
-    <!-- Cropping functionality -->
-    <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        const cropModal = document.getElementById('cropModal');
-        const cropImgEl = document.getElementById('cropImage');
-        const cropBtnEl = document.getElementById('cropBtn');
-        const cropAspect = document.getElementById('cropAspect');
-        const cropWidth = document.getElementById('cropWidth');
-        const cropHeight = document.getElementById('cropHeight');
-        const zoomOutBtn = document.getElementById('zoomOutBtn');
-        const zoomInBtn = document.getElementById('zoomInBtn');
-        const rotateLeftBtn = document.getElementById('rotateLeftBtn');
-        const rotateRightBtn = document.getElementById('rotateRightBtn');
-        const flipHBtn = document.getElementById('flipHBtn');
-        const flipVBtn = document.getElementById('flipVBtn');
-        const zoomPercent = document.getElementById('zoomPercent');
-        const cropConfirm = document.getElementById('cropConfirmBtn');
-        const cropReset = document.getElementById('cropResetBtn');
-        const cropCancel = document.getElementById('cropCancelBtn');
-        let cropper = null;
-        let scaleX = 1;
-        let scaleY = 1;
-        // Helper to update size inputs and zoom percent
-        function updateCropInfo() {
-          if (!cropper) return;
-          const data = cropper.getData(true);
-          cropWidth.value = Math.round(data.width);
-          cropHeight.value = Math.round(data.height);
-          const zoomLevel = Math.round(cropper.getZoomRatio() * 100);
-          zoomPercent.textContent = zoomLevel + '%';
+  <!-- Cropping functionality using custom cropper implementation -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const cropModal = document.getElementById('cropModal');
+      const cropImgEl = document.getElementById('cropImage');
+      const cropBtnEl = document.getElementById('cropBtn');
+      const cropAspect = document.getElementById('cropAspect');
+      const cropWidthInput = document.getElementById('cropWidth');
+      const cropHeightInput = document.getElementById('cropHeight');
+      const zoomOutBtn = document.getElementById('zoomOutBtn');
+      const zoomInBtn = document.getElementById('zoomInBtn');
+      const rotateLeftBtn = document.getElementById('rotateLeftBtn');
+      const rotateRightBtn = document.getElementById('rotateRightBtn');
+      const flipHBtn = document.getElementById('flipHBtn');
+      const flipVBtn = document.getElementById('flipVBtn');
+      const cropConfirm = document.getElementById('cropConfirmBtn');
+      const cropReset = document.getElementById('cropResetBtn');
+      const cropCancel = document.getElementById('cropCancelBtn');
+      const previewArea = document.getElementById('cropPreviewArea');
+      // Remove any existing overlay from previous sessions
+      // Create dynamic elements for custom cropper
+      const dimT = document.createElement('div');
+      const dimB = document.createElement('div');
+      const dimL = document.createElement('div');
+      const dimR = document.createElement('div');
+      dimT.className = dimB.className = dimL.className = dimR.className = 'dim-overlay';
+      previewArea.appendChild(dimT);
+      previewArea.appendChild(dimB);
+      previewArea.appendChild(dimL);
+      previewArea.appendChild(dimR);
+      const cropBox = document.createElement('div');
+      cropBox.className = 'crop-box';
+      // Add handles
+      const positions = ['nw','n','ne','e','se','s','sw','w'];
+      positions.forEach(pos => {
+        const h = document.createElement('div');
+        h.className = 'crop-handle ' + pos;
+        cropBox.appendChild(h);
+      });
+      previewArea.appendChild(cropBox);
+      // Rule of thirds lines inside crop box
+      const ruleLines = [];
+      for (let i = 1; i <= 2; i++) {
+        const lh = document.createElement('div');
+        lh.className = 'rule-line rule-h';
+        cropBox.appendChild(lh);
+        ruleLines.push(lh);
+        const lv = document.createElement('div');
+        lv.className = 'rule-line rule-v';
+        cropBox.appendChild(lv);
+        ruleLines.push(lv);
+      }
+      let naturalWidth = 0;
+      let naturalHeight = 0;
+      let scale = 1;
+      let rotation = 0;
+      let flipX = 1;
+      let flipY = 1;
+      let aspectRatio = null; // null for free
+      let cropRect = { x: 50, y: 50, width: 200, height: 200 };
+      let dragging = false;
+      let resizing = false;
+      let dragStart = { x: 0, y: 0 };
+      let resizeStart = { x: 0, y: 0, w: 0, h: 0, cx: 0, cy: 0 };
+      let activeHandle = '';
+      function updateDimOverlays() {
+        // dims overlay dims
+        const { x, y, width, height } = cropRect;
+        const pw = previewArea.clientWidth;
+        const ph = previewArea.clientHeight;
+        dimT.style.top = '0px';
+        dimT.style.left = '0px';
+        dimT.style.width = pw + 'px';
+        dimT.style.height = y + 'px';
+        dimB.style.top = (y + height) + 'px';
+        dimB.style.left = '0px';
+        dimB.style.width = pw + 'px';
+        dimB.style.height = (ph - y - height) + 'px';
+        dimL.style.top = y + 'px';
+        dimL.style.left = '0px';
+        dimL.style.width = x + 'px';
+        dimL.style.height = height + 'px';
+        dimR.style.top = y + 'px';
+        dimR.style.left = (x + width) + 'px';
+        dimR.style.width = (pw - x - width) + 'px';
+        dimR.style.height = height + 'px';
+      }
+      function updateCropBox() {
+        cropBox.style.left = cropRect.x + 'px';
+        cropBox.style.top = cropRect.y + 'px';
+        cropBox.style.width = cropRect.width + 'px';
+        cropBox.style.height = cropRect.height + 'px';
+        // update rule lines (2 vertical, 2 horizontal)
+        const rh = cropRect.height / 3;
+        const rw = cropRect.width / 3;
+        // First two are horizontal
+        ruleLines[0].style.top = rh + 'px';
+        ruleLines[0].style.left = '0px';
+        ruleLines[0].style.width = '100%';
+        ruleLines[0].style.height = '1px';
+        ruleLines[1].style.top = (2 * rh) + 'px';
+        ruleLines[1].style.left = '0px';
+        ruleLines[1].style.width = '100%';
+        ruleLines[1].style.height = '1px';
+        // Next two are vertical
+        ruleLines[2].style.left = rw + 'px';
+        ruleLines[2].style.top = '0px';
+        ruleLines[2].style.width = '1px';
+        ruleLines[2].style.height = '100%';
+        ruleLines[3].style.left = (2 * rw) + 'px';
+        ruleLines[3].style.top = '0px';
+        ruleLines[3].style.width = '1px';
+        ruleLines[3].style.height = '100%';
+        updateDimOverlays();
+        updateInputsFromCrop();
+      }
+      function updateInputsFromCrop() {
+        // update width/height inputs in pixels of natural image
+        if (!cropImgEl || !naturalWidth) return;
+        const displayW = cropImgEl.clientWidth * scale;
+        const displayH = cropImgEl.clientHeight * scale;
+        const ratioX = naturalWidth / displayW;
+        const ratioY = naturalHeight / displayH;
+        const w = Math.round(cropRect.width * ratioX);
+        const h = Math.round(cropRect.height * ratioY);
+        cropWidthInput.value = w;
+        cropHeightInput.value = h;
+      }
+      // Handle dragging/resizing
+      function pointerDown(e) {
+        e.preventDefault();
+        const target = e.target;
+        const rect = previewArea.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        if (target.classList.contains('crop-handle')) {
+          resizing = true;
+          dragging = false;
+          activeHandle = positions.find(pos => target.classList.contains(pos));
+          resizeStart = { x: px, y: py, w: cropRect.width, h: cropRect.height, cx: cropRect.x, cy: cropRect.y };
+        } else if (target === cropBox || target.parentElement === cropBox) {
+          dragging = true;
+          resizing = false;
+          dragStart = { x: px, y: py, cx: cropRect.x, cy: cropRect.y };
         }
-        // Open cropping modal when crop button clicked
-        if (cropBtnEl) {
-          cropBtnEl.addEventListener('click', () => {
-            if (!files || files.length !== 1) {
-              alert('Please upload a single image to crop.');
-              return;
+        document.addEventListener('pointermove', pointerMove);
+        document.addEventListener('pointerup', pointerUp);
+      }
+      function pointerMove(e) {
+        e.preventDefault();
+        const rect = previewArea.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const pw = previewArea.clientWidth;
+        const ph = previewArea.clientHeight;
+        if (dragging) {
+          const dx = px - dragStart.x;
+          const dy = py - dragStart.y;
+          cropRect.x = Math.min(Math.max(0, dragStart.cx + dx), pw - cropRect.width);
+          cropRect.y = Math.min(Math.max(0, dragStart.cy + dy), ph - cropRect.height);
+          updateCropBox();
+        } else if (resizing) {
+          let newW = resizeStart.w;
+          let newH = resizeStart.h;
+          let newX = resizeStart.cx;
+          let newY = resizeStart.cy;
+          const dx = px - resizeStart.x;
+          const dy = py - resizeStart.y;
+          function applyAspect(w, h) {
+            if (aspectRatio) {
+              if (Math.abs(w) > Math.abs(h * aspectRatio)) {
+                h = w / aspectRatio;
+              } else {
+                w = h * aspectRatio;
+              }
             }
-            const file = files[0];
-            const reader = new FileReader();
-            reader.onload = () => {
-              cropImgEl.src = reader.result;
-              // Wait for image to load before initializing Cropper
-              cropImgEl.onload = () => {
-                // Destroy old cropper if exists
-                if (cropper) {
-                  cropper.destroy();
-                  cropper = null;
-                  scaleX = 1;
-                  scaleY = 1;
-                }
-                cropper = new Cropper(cropImgEl, {
-                  viewMode: 1,
-                  dragMode: 'move',
-                  autoCropArea: 0.8,
-                  background: false,
-                  responsive: true,
-                  checkOrientation: false,
-                  guides: true,
-                  ready() {
-                    updateCropInfo();
-                  },
-                  cropend() {
-                    updateCropInfo();
-                  },
-                  zoom() {
-                    updateCropInfo();
-                  }
-                });
-                updateCropInfo();
-                cropModal.classList.add('open');
-              };
+            return { w, h };
+          }
+          if (activeHandle.includes('e')) {
+            newW = resizeStart.w + dx;
+          }
+          if (activeHandle.includes('s')) {
+            newH = resizeStart.h + dy;
+          }
+          if (activeHandle.includes('w')) {
+            newW = resizeStart.w - dx;
+            newX = resizeStart.cx + dx;
+          }
+          if (activeHandle.includes('n')) {
+            newH = resizeStart.h - dy;
+            newY = resizeStart.cy + dy;
+          }
+          // Apply aspect ratio
+          if (aspectRatio) {
+            const ratioVals = applyAspect(newW, newH);
+            newW = ratioVals.w;
+            newH = ratioVals.h;
+            if (activeHandle.includes('w')) {
+              newX = resizeStart.cx + (resizeStart.w - newW);
+            }
+            if (activeHandle.includes('n')) {
+              newY = resizeStart.cy + (resizeStart.h - newH);
+            }
+          }
+          // Constrain to minimum size
+          const minSize = 20;
+          newW = Math.max(minSize, newW);
+          newH = Math.max(minSize, newH);
+          // Constrain within bounds
+          if (newX < 0) {
+            newW += newX;
+            newX = 0;
+          }
+          if (newY < 0) {
+            newH += newY;
+            newY = 0;
+          }
+          if (newX + newW > pw) {
+            newW = pw - newX;
+          }
+          if (newY + newH > ph) {
+            newH = ph - newY;
+          }
+          cropRect.x = newX;
+          cropRect.y = newY;
+          cropRect.width = newW;
+          cropRect.height = newH;
+          updateCropBox();
+        }
+      }
+      function pointerUp() {
+        dragging = false;
+        resizing = false;
+        document.removeEventListener('pointermove', pointerMove);
+        document.removeEventListener('pointerup', pointerUp);
+      }
+      cropBox.addEventListener('pointerdown', pointerDown);
+      // Also listen on preview area to allow dragging crop box edges
+      // Zoom controls - simply adjust scale for preview image
+      function applyTransform() {
+        let transform = '';
+        transform += `scale(${scale})`;
+        transform += ` rotate(${rotation}deg)`;
+        transform += ` scaleX(${flipX})`;
+        transform += ` scaleY(${flipY})`;
+        cropImgEl.style.transform = transform;
+      }
+      if (zoomInBtn) zoomInBtn.addEventListener('click', () => {
+        scale = Math.min(5, scale + 0.1);
+        applyTransform();
+      });
+      if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => {
+        scale = Math.max(0.1, scale - 0.1);
+        applyTransform();
+      });
+      if (rotateLeftBtn) rotateLeftBtn.addEventListener('click', () => {
+        rotation = (rotation - 90) % 360;
+        applyTransform();
+      });
+      if (rotateRightBtn) rotateRightBtn.addEventListener('click', () => {
+        rotation = (rotation + 90) % 360;
+        applyTransform();
+      });
+      if (flipHBtn) flipHBtn.addEventListener('click', () => {
+        flipX = -flipX;
+        applyTransform();
+      });
+      if (flipVBtn) flipVBtn.addEventListener('click', () => {
+        flipY = -flipY;
+        applyTransform();
+      });
+      function setAspectFromSelect() {
+        const val = cropAspect.value;
+        if (val === 'free') {
+          aspectRatio = null;
+        } else {
+          const parts = val.split(':');
+          const w = parseFloat(parts[0]);
+          const h = parseFloat(parts[1]);
+          if (w && h) aspectRatio = w / h;
+        }
+        // Update crop box dimensions to fit new aspect ratio
+        const current = { ...cropRect };
+        if (aspectRatio) {
+          // Adjust width/height while keeping center
+          let newW = current.width;
+          let newH = newW / aspectRatio;
+          if (newH > previewArea.clientHeight) {
+            newH = previewArea.clientHeight;
+            newW = newH * aspectRatio;
+          }
+          const cx = current.x + current.width / 2;
+          const cy = current.y + current.height / 2;
+          cropRect.width = newW;
+          cropRect.height = newH;
+          cropRect.x = Math.min(Math.max(0, cx - newW / 2), previewArea.clientWidth - newW);
+          cropRect.y = Math.min(Math.max(0, cy - newH / 2), previewArea.clientHeight - newH);
+        }
+        updateCropBox();
+      }
+      cropAspect.addEventListener('change', setAspectFromSelect);
+      // When width/height inputs change manually
+      function inputsChanged() {
+        const wVal = parseInt(cropWidthInput.value, 10);
+        const hVal = parseInt(cropHeightInput.value, 10);
+        if (isNaN(wVal) || isNaN(hVal) || !naturalWidth) return;
+        const displayW = cropImgEl.clientWidth * scale;
+        const displayH = cropImgEl.clientHeight * scale;
+        const ratioX = displayW / naturalWidth;
+        const ratioY = displayH / naturalHeight;
+        const newW = wVal * ratioX;
+        const newH = hVal * ratioY;
+        // Keep center
+        const cx = cropRect.x + cropRect.width / 2;
+        const cy = cropRect.y + cropRect.height / 2;
+        cropRect.width = newW;
+        cropRect.height = newH;
+        cropRect.x = Math.min(Math.max(0, cx - newW / 2), previewArea.clientWidth - newW);
+        cropRect.y = Math.min(Math.max(0, cy - newH / 2), previewArea.clientHeight - newH);
+        updateCropBox();
+      }
+      cropWidthInput.addEventListener('change', inputsChanged);
+      cropHeightInput.addEventListener('change', inputsChanged);
+      // Open cropping modal when crop button clicked
+      if (cropBtnEl) {
+        cropBtnEl.addEventListener('click', () => {
+          if (!files || files.length !== 1) {
+            alert('Please upload a single image to crop.');
+            return;
+          }
+          const file = files[0];
+          const reader = new FileReader();
+          reader.onload = () => {
+            cropImgEl.onload = () => {
+              naturalWidth = cropImgEl.naturalWidth;
+              naturalHeight = cropImgEl.naturalHeight;
+              scale = 1;
+              rotation = 0;
+              flipX = 1;
+              flipY = 1;
+              applyTransform();
+              // Initialize crop box to 80% of shorter side
+              const pw = previewArea.clientWidth;
+              const ph = previewArea.clientHeight;
+              const side = Math.min(pw, ph) * 0.8;
+              cropRect.width = side;
+              cropRect.height = aspectRatio ? side / aspectRatio : side;
+              cropRect.x = (pw - cropRect.width) / 2;
+              cropRect.y = (ph - cropRect.height) / 2;
+              updateCropBox();
+              cropModal.classList.add('open');
             };
-            reader.readAsDataURL(file);
-          });
-        }
-        // Aspect ratio change
-        if (cropAspect) {
-          cropAspect.addEventListener('change', () => {
-            if (!cropper) return;
-            const val = cropAspect.value;
-            if (val === 'free') {
-              cropper.setAspectRatio(NaN);
-            } else {
-              const parts = val.split(':');
-              const w = parseFloat(parts[0]);
-              const h = parseFloat(parts[1]);
-              if (w && h) cropper.setAspectRatio(w / h);
-            }
-          });
-        }
-        // Zoom controls
-        function adjustZoom(delta) {
-          if (!cropper) return;
-          cropper.zoom(delta);
-          updateCropInfo();
-        }
-        if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => adjustZoom(-0.1));
-        if (zoomInBtn) zoomInBtn.addEventListener('click', () => adjustZoom(0.1));
-        // Rotate
-        if (rotateLeftBtn) rotateLeftBtn.addEventListener('click', () => {
-          if (cropper) cropper.rotate(-90);
-          updateCropInfo();
+            cropImgEl.src = reader.result;
+          };
+          reader.readAsDataURL(file);
         });
-        if (rotateRightBtn) rotateRightBtn.addEventListener('click', () => {
-          if (cropper) cropper.rotate(90);
-          updateCropInfo();
-        });
-        // Flip horizontal / vertical
-        if (flipHBtn) flipHBtn.addEventListener('click', () => {
-          if (cropper) {
-            scaleX = scaleX * -1;
-            cropper.scaleX(scaleX);
-          }
-        });
-        if (flipVBtn) flipVBtn.addEventListener('click', () => {
-          if (cropper) {
-            scaleY = scaleY * -1;
-            cropper.scaleY(scaleY);
-          }
-        });
-        // Reset crop
-        if (cropReset) cropReset.addEventListener('click', () => {
-          if (cropper) cropper.reset();
-          scaleX = 1;
-          scaleY = 1;
-          updateCropInfo();
-        });
-        // Cancel
-        if (cropCancel) cropCancel.addEventListener('click', () => {
-          if (cropper) {
-            cropper.destroy();
-            cropper = null;
+      }
+      // Reset crop
+      if (cropReset) cropReset.addEventListener('click', () => {
+        const pw = previewArea.clientWidth;
+        const ph = previewArea.clientHeight;
+        const side = Math.min(pw, ph) * 0.8;
+        cropRect.width = side;
+        cropRect.height = aspectRatio ? side / aspectRatio : side;
+        cropRect.x = (pw - cropRect.width) / 2;
+        cropRect.y = (ph - cropRect.height) / 2;
+        scale = 1;
+        rotation = 0;
+        flipX = 1;
+        flipY = 1;
+        applyTransform();
+        updateCropBox();
+      });
+      // Cancel
+      if (cropCancel) cropCancel.addEventListener('click', () => {
+        cropModal.classList.remove('open');
+      });
+      // Apply crop
+      if (cropConfirm) cropConfirm.addEventListener('click', () => {
+        if (!naturalWidth) return;
+        // Create canvas with natural size of cropped area
+        const displayW = cropImgEl.clientWidth * scale;
+        const displayH = cropImgEl.clientHeight * scale;
+        const ratioX = naturalWidth / displayW;
+        const ratioY = naturalHeight / displayH;
+        const natX = cropRect.x * ratioX;
+        const natY = cropRect.y * ratioY;
+        const natW = cropRect.width * ratioX;
+        const natH = cropRect.height * ratioY;
+        const canvas = document.createElement('canvas');
+        canvas.width = natW;
+        canvas.height = natH;
+        const ctx = canvas.getContext('2d');
+        ctx.save();
+        // Apply flips and rotation relative to center
+        ctx.translate(natW / 2, natH / 2);
+        ctx.scale(flipX, flipY);
+        ctx.rotate((rotation * Math.PI) / 180);
+        ctx.drawImage(cropImgEl, -natX - natW / 2, -natY - natH / 2, naturalWidth, naturalHeight);
+        ctx.restore();
+        canvas.toBlob(blob => {
+          if (blob) {
+            const file = files[0];
+            const parts = file.name.split('.');
+            const ext = parts.length > 1 ? parts.pop() : 'jpg';
+            const baseName = parts.join('.') || 'cropped';
+            const newFileName = `${baseName}_cropped.${ext}`;
+            const newFile = new File([blob], newFileName, { type: file.type });
+            files = [newFile];
+            renderList();
           }
           cropModal.classList.remove('open');
-        });
-        // Apply crop
-        if (cropConfirm) cropConfirm.addEventListener('click', () => {
-          if (!cropper) return;
-          // Get cropped image as blob
-          cropper.getCroppedCanvas({}).toBlob(blob => {
-            if (blob) {
-              const file = files[0];
-              // Determine extension and base name
-              const parts = file.name.split('.');
-              const ext = parts.length > 1 ? parts.pop() : 'jpg';
-              const baseName = parts.join('.') || 'cropped';
-              const newFileName = `${baseName}_cropped.${ext}`;
-              const newFile = new File([blob], newFileName, { type: file.type });
-              files = [ newFile ];
-              renderList();
-            }
-            // Close modal and destroy cropper
-            cropper.destroy();
-            cropper = null;
-            cropModal.classList.remove('open');
-          }, files[0].type || 'image/jpeg');
-        });
-        // Sync width/height inputs with cropper data; editing width recalculates height when aspect ratio locked
-        function syncInputsToCropper() {
-          if (!cropper) return;
-          const w = parseInt(cropWidth.value, 10);
-          const h = parseInt(cropHeight.value, 10);
-          if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
-            const data = cropper.getData();
-            cropper.setData({ x: data.x, y: data.y, width: w, height: h });
-            updateCropInfo();
-          }
-        }
-        if (cropWidth) cropWidth.addEventListener('change', syncInputsToCropper);
-        if (cropHeight) cropHeight.addEventListener('change', syncInputsToCropper);
+        }, files[0].type || 'image/jpeg');
       });
-    </script>
+    });
+  </script>
 </body>
 </html>
