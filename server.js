@@ -127,59 +127,89 @@ app.post('/process', upload.array('files'), async (req, res) => {
 
     // Determine sizing options
     let { preset } = req.body;
-    let width = parseInt(req.body.width) || undefined;
-    let height = parseInt(req.body.height) || undefined;
+    let width = parseInt(req.body.width); // Parse directly, handle NaN/<=0 later
+    let height = parseInt(req.body.height); // Parse directly, handle NaN/<=0 later
     const fit = req.body.fit === 'cover' ? 'cover' : 'inside';
     const quality = Math.max(1, Math.min(100, parseInt(req.body.quality) || 80));
 
+    let finalWidth, finalHeight;
+
     if (preset && PRESETS[preset]) {
-      width = PRESETS[preset].width;
-      height = PRESETS[preset].height;
+      finalWidth = PRESETS[preset].width;
+      finalHeight = PRESETS[preset].height;
+    } else {
+      // Validate explicit width and height if no preset is used
+      const providedWidth = req.body.width !== undefined && req.body.width !== null;
+      const providedHeight = req.body.height !== undefined && req.body.height !== null;
+
+      if (providedWidth) {
+        if (isNaN(width) || width <= 0) {
+          return res.status(400).json({ error: `Invalid width provided. Please provide a positive number.` });
+        }
+        finalWidth = width;
+      }
+      if (providedHeight) {
+        if (isNaN(height) || height <= 0) {
+          return res.status(400).json({ error: `Invalid height provided. Please provide a positive number.` });
+        }
+        finalHeight = height;
+      }
+      // If neither preset nor explicit dimensions are provided, finalWidth/finalHeight will be undefined.
+      // sharp handles undefined dimensions by keeping original size.
     }
 
     // Helper to process a single file
     async function processOne(file) {
       let inputBuffer = file.buffer;
       let ext = path.extname(file.originalname).toLowerCase();
-      let image = sharp(inputBuffer);
+      let image;
+      let buffer;
+      let filename;
 
-      // Rotate based on EXIF
-      image = image.rotate();
+      try {
+        image = sharp(inputBuffer);
 
-      // Resize if requested
-      if (width || height) {
+        // Rotate based on EXIF
+        image = image.rotate();
+
+        // Resize if requested
+        if (width || height) {
         image = image.resize({
-          width,
-          height,
+          width: finalWidth,
+          height: finalHeight,
           fit: fit === 'cover' ? sharp.fit.cover : sharp.fit.inside
         });
       }
+        // Determine output format: convert HEIC/HEIF to JPEG; preserve PNG
+        let outputFormat = 'jpeg';
+        if (ext === '.png') {
+          outputFormat = 'png';
+        }
+        if (outputFormat === 'png') {
+          image = image.png();
+        } else {
+          image = image.jpeg({ quality });
+        }
+        buffer = await image.toBuffer();
 
-      // Determine output format: convert HEIC/HEIF to JPEG; preserve PNG
-      let outputFormat = 'jpeg';
-      if (ext === '.png') {
-        outputFormat = 'png';
+        // Build filename with suffix
+        const baseName = path.parse(file.originalname).name;
+        let suffix = '';
+        if (width && height) {
+          suffix = `_${width}x${height}`;
+        } else if (width) {
+          suffix = `_${width}w`;
+        } else if (height) {
+          suffix = `_${height}h`;
+        }
+        const extOut = outputFormat === 'png' ? '.png' : '.jpg';
+        filename = baseName + suffix + extOut;
+      } catch (err) {
+        console.error(`Error processing file ${file.originalname}:`, err);
+        // Re-throw or return an error indicator to be handled by the caller
+        throw new Error(`Failed to process ${file.originalname}: ${err.message}`);
       }
-      if (outputFormat === 'png') {
-        image = image.png();
-      } else {
-        image = image.jpeg({ quality });
-      }
-      const buffer = await image.toBuffer();
-
-      // Build filename with suffix
-      const baseName = path.parse(file.originalname).name;
-      let suffix = '';
-      if (width && height) {
-        suffix = `_${width}x${height}`;
-      } else if (width) {
-        suffix = `_${width}w`;
-      } else if (height) {
-        suffix = `_${height}h`;
-      }
-      const extOut = outputFormat === 'png' ? '.png' : '.jpg';
-      const newName = baseName + suffix + extOut;
-      return { buffer, filename: newName };
+      return { buffer, filename };
     }
 
     // Process files concurrently
@@ -248,6 +278,66 @@ app.get('/blog/:slug', (req, res, next) => {
     return res.sendFile(filePath);
   }
   return next();
+});
+
+// PDF Tool API routes (no-op handlers for now)
+app.post('/api/pdf/merge', (req, res) => {
+  // Pro gating placeholder: block >25MB or >50 pages in free mode
+  const isProUser = isPro(req); // Assume isPro is defined elsewhere
+  const fileSize = req.headers['content-length']; // Example: get file size from header
+  const pageCount = 1; // Placeholder for page count
+
+  if (!isProUser && (fileSize > (25 * 1024 * 1024) || pageCount > 50)) {
+    return res.status(403).json({ error: 'Free users are limited to 25MB and 50 pages for PDF merge.' });
+  }
+  res.set({
+    'Content-Type': 'application/pdf',
+    'Content-Disposition': 'attachment; filename="merged.pdf"',
+    'Cache-Control': 'no-store'
+  });
+  res.send('dummy merged pdf content');
+});
+
+app.post('/api/pdf/split', (req, res) => {
+  // Pro gating placeholder
+  const isProUser = isPro(req);
+  const fileSize = req.headers['content-length'];
+  const pageCount = 1;
+
+  if (!isProUser && (fileSize > (25 * 1024 * 1024) || pageCount > 50)) {
+    return res.status(403).json({ error: 'Free users are limited to 25MB and 50 pages for PDF split.' });
+  }
+  res.set({
+    'Content-Type': 'application/zip',
+    'Content-Disposition': 'attachment; filename="split_pdfs.zip"',
+    'Cache-Control': 'no-store'
+  });
+  res.send('dummy zip content');
+});
+
+app.post('/api/pdf/compress', (req, res) => {
+  // Pro gating placeholder
+  const isProUser = isPro(req);
+  const fileSize = req.headers['content-length'];
+  const pageCount = 1;
+
+  if (!isProUser && (fileSize > (25 * 1024 * 1024) || pageCount > 50)) {
+    return res.status(403).json({ error: 'Free users are limited to 25MB and 50 pages for PDF compress.' });
+  }
+  res.set({
+    'Content-Type': 'application/pdf',
+    'Content-Disposition': 'attachment; filename="compressed.pdf"',
+    'Cache-Control': 'no-store'
+  });
+  res.send('dummy compressed pdf content');
+});
+
+app.post('/api/pdf/unlock', (req, res) => {
+  res.json({ ok: true, token: 'dummy_unlocked_token' });
+});
+
+app.get('/api/pdf/job/:id', (req, res) => {
+  res.json({ status: 'done', result: 'dummy_result_url' });
 });
 
 app.use(express.static(path.join(__dirname)));
