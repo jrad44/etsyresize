@@ -58,7 +58,9 @@ const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth, imageHeig
       });
 
       // Initialize crop to cover the entire scaled image if not already set
-      if (crop.width === 0 && crop.height === 0) {
+      // Initialize crop to cover the entire scaled image if not already set
+      // Only do this if crop dimensions are 0, meaning it's the initial load or reset
+      if (crop.width === 0 && crop.height === 0 && scaledWidth > 0 && scaledHeight > 0) {
         setCrop({
           x: 0, // Relative to scaled image
           y: 0, // Relative to scaled image

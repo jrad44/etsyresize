@@ -40,8 +40,8 @@ const useCropStore = create<CropState>((set, get) => ({
   openCropMode: (url, width, height) => set({
     isCropModeOpen: true,
     image: { url, width, height },
-    // Initialize crop to full image or a default square
-    crop: { x: 0, y: 0, width: width || 0, height: height || 0, ratio: null },
+    // Initialize crop to zero dimensions, CropCanvas will set it to scaled image size
+    crop: { x: 0, y: 0, width: 0, height: 0, ratio: null },
   }),
   closeCropMode: () => set({
     isCropModeOpen: false,
