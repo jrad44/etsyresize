@@ -37,12 +37,15 @@ const useCropStore = create<CropState>((set, get) => ({
   limits: { minCropPx: 10 },
   pro: { isPro: false, dailyFreeRemaining: 5 },
 
-  openCropMode: (url, width, height) => set({
-    isCropModeOpen: true,
-    image: { url, width, height },
-    // Initialize crop to zero dimensions, CropCanvas will set it to scaled image size
-    crop: { x: 0, y: 0, width: 0, height: 0, ratio: null },
-  }),
+  openCropMode: (url, width, height) => {
+    console.log('useCropStore: openCropMode called with:', { url, width, height });
+    set({
+      isCropModeOpen: true,
+      image: { url, width: width || 800, height: height || 600 }, // Provide default dimensions if not available
+      // Initialize crop to zero dimensions, CropCanvas will set it to scaled image size
+      crop: { x: 0, y: 0, width: 0, height: 0, ratio: null },
+    });
+  },
   closeCropMode: () => set({
     isCropModeOpen: false,
     image: {},
