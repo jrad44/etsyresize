@@ -550,7 +550,7 @@
       </div>
       <button id="hamburger" class="hamburger" aria-label="Toggle navigation">☰</button>
       <ul id="menuItems" class="menu-items">
-        <li><a href="/" id="navResizer">Image Resizer</a></li>
+        <li><a href="/" id="navResizer" class="active">Image Resizer</a></li>
         <li><a href="/pdf" id="navPdf">PDF Tool</a></li>
         <li><a href="/background" id="navBg">Background Remover</a></li>
       </ul>
@@ -1000,9 +1000,10 @@ window.renderList = function renderList() {
         const navResizer = document.getElementById('navResizer');
         const navPdf = document.getElementById('navPdf');
         const navBg = document.getElementById('navBg');
-        if (path === '' || path === '/index.html' || path === '/') {
-          navResizer && navResizer.classList.add('active');
-        } else if (path.startsWith('/pdf')) {
+        // The "Image Resizer" link is now active by default in the HTML.
+        // This script block is no longer needed for initial active state.
+        // However, it's good practice to keep the logic for other pages.
+        if (path.startsWith('/pdf')) {
           navPdf && navPdf.classList.add('active');
         } else if (path.startsWith('/background')) {
           navBg && navBg.classList.add('active');
@@ -1075,8 +1076,8 @@ window.renderList = function renderList() {
   </div>
 
   <!-- Load social presets and dynamic preset rendering -->
-  <script src="/presets.js"></script>
   <!-- Cropping functionality using custom cropper implementation -->
+  <script src="/presets.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const cropModal = document.getElementById('cropModal');
@@ -1471,32 +1472,49 @@ window.renderList = function renderList() {
         const natY = cropRect.y * ratioY;
         const natW = cropRect.width * ratioX;
         const natH = cropRect.height * ratioY;
-        const canvas = document.createElement('canvas');
-        canvas.width = natW;
-        canvas.height = natH;
-        const ctx = canvas.getContext('2d');
-        ctx.save();
-        // Apply flips and rotation relative to center
-        ctx.translate(natW / 2, natH / 2);
-        ctx.scale(flipX, flipY);
-        ctx.rotate((rotation * Math.PI) / 180);
-        ctx.drawImage(cropImgEl, -natX - natW / 2, -natY - natH / 2, naturalWidth, naturalHeight);
-        ctx.restore();
-        canvas.toBlob(blob => {
-          if (blob) {
-            const file = files[0];
-            const parts = file.name.split('.');
-            const ext = parts.length > 1 ? parts.pop() : 'jpg';
-            const baseName = parts.join('.') || 'cropped';
-            const newFileName = `${baseName}_cropped.${ext}`;
-            const newFile = new File([blob], newFileName, { type: file.type });
-            files = [newFile];
-            renderList();
+
+        // Prepare data for backend
+        const formData = new FormData();
+        formData.append('image', files[0]); // The original file
+        formData.append('x', natX);
+        formData.append('y', natY);
+        formData.append('width', natW);
+        formData.append('height', natH);
+        formData.append('rotate', rotation);
+        formData.append('flipX', flipX);
+        formData.append('flipY', flipY);
+
+        // Send to backend for processing
+        fetch('/api/crop', {
+          method: 'POST',
+          body: formData,
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Server responded with an error.');
           }
+          return response.blob();
+        })
+        .then(blob => {
+          const file = files[0];
+          const parts = file.name.split('.');
+          const ext = parts.length > 1 ? parts.pop() : 'jpg';
+          const baseName = parts.join('.') || 'cropped';
+          const newFileName = `${baseName}_cropped.${ext}`;
+          const newFile = new File([blob], newFileName, { type: file.type });
+          files = [newFile];
+          renderList();
           // Hide modal and restore page scrolling after applying crop
           cropModal.classList.remove('open');
           document.body.style.overflow = '';
-        }, files[0].type || 'image/jpeg');
+        })
+        .catch(error => {
+          console.error('Error applying crop:', error);
+          alert('Error applying crop. Please try again.');
+          // Hide modal and restore page scrolling even on error
+          cropModal.classList.remove('open');
+          document.body.style.overflow = '';
+        });
       });
     });
   </script>
