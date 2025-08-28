@@ -7,7 +7,7 @@ interface CropCanvasProps {
   imageHeight?: number;
 }
 
-const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth, imageHeight }) => {
+const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth: _imageWidth, imageHeight: _imageHeight }) => {
   const { crop, image, view, transform, setCrop, limits, setPan } = useCropStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -72,13 +72,13 @@ const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth, imageHeig
 
   // Convert crop coordinates from image-relative to container-relative
   // These are the coordinates of the crop box *before* any image transformations (zoom, pan, rotate, flip)
-  const cropX = scaledImageDims.x + crop.x;
-  const cropY = scaledImageDims.y + crop.y;
-  const cropWidth = crop.width;
-  const cropHeight = crop.height;
+  const _cropX = scaledImageDims.x + crop.x;
+  const _cropY = scaledImageDims.y + crop.y;
+  const _cropWidth = crop.width;
+  const _cropHeight = crop.height;
 
   // Pan and Zoom handlers
-  const handlePanMouseDown = (e: React.MouseEvent) => {
+  const _handlePanMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });

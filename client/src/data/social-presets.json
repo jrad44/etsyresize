@@ -1,0 +1,63 @@
+{
+  "Facebook": {
+    "Profile Picture": { "width": 170, "height": 170 },
+    "Cover Photo": { "width": 851, "height": 315 },
+    "Post": { "width": 1200, "height": 630 },
+    "Story": { "width": 1080, "height": 1920 }
+  },
+  "Instagram": {
+    "Profile Picture": { "width": 110, "height": 110 },
+    "Post (Square)": { "width": 1080, "height": 1080 },
+    "Post (Landscape)": { "width": 1080, "height": 566 },
+    "Post (Portrait)": { "width": 1080, "height": 1350 },
+    "Story": { "width": 1080, "height": 1920 }
+  },
+  "Twitter": {
+    "Profile Picture": { "width": 400, "height": 400 },
+    "Header Photo": { "width": 1500, "height": 500 },
+    "In-stream Photo": { "width": 1600, "height": 900 }
+  },
+  "YouTube": {
+    "Profile Picture": { "width": 800, "height": 800 },
+    "Channel Cover Photo": { "width": 2560, "height": 1440 },
+    "Video Thumbnail": { "width": 1280, "height": 720 }
+  },
+  "Discord": {
+    "Server Icon": { "width": 512, "height": 512 },
+    "Emoji": { "width": 128, "height": 128 }
+  },
+  "Etsy": {
+    "Shop Icon": { "width": 500, "height": 500 },
+    "Listing Image": { "width": 2000, "height": 2000 }
+  },
+  "Shopify": {
+    "Product Image": { "width": 2048, "height": 2048 },
+    "Collection Image": { "width": 1024, "height": 1024 }
+  },
+  "eBay": {
+    "Listing Image": { "width": 1600, "height": 1600 }
+  },
+  "LinkedIn": {
+    "Profile Picture": { "width": 400, "height": 400 },
+    "Cover Image": { "width": 1584, "height": 396 }
+  },
+  "Pinterest": {
+    "Profile Picture": { "width": 165, "height": 165 },
+    "Pin": { "width": 1000, "height": 1500 }
+  },
+  "Reddit": {
+    "Profile Picture": { "width": 256, "height": 256 },
+    "Banner": { "width": 1920, "height": 384 }
+  },
+  "Threads": {
+    "Profile Picture": { "width": 110, "height": 110 }
+  },
+  "TikTok": {
+    "Profile Picture": { "width": 200, "height": 200 },
+    "Video": { "width": 1080, "height": 1920 }
+  },
+  "X": {
+    "Profile Picture": { "width": 400, "height": 400 },
+    "Header Photo": { "width": 1500, "height": 500 }
+  }
+}

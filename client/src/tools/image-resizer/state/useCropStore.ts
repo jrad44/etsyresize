@@ -27,7 +27,7 @@ interface CropState {
   flip: (axis: 'H' | 'V') => void;
 }
 
-const useCropStore = create<CropState>((set, get) => ({
+const useCropStore = create<CropState>((set, _get) => ({
   isCropModeOpen: false,
   image: {},
   crop: { x: 0, y: 0, width: 0, height: 0, ratio: null },

@@ -1,20 +1,15 @@
-import React, { useState } from 'react';
-import './App.css'; // Keep for now, will be replaced by Tailwind
-import CropModeModal from './tools/image-resizer/CropModeModal';
-import useCropStore from './tools/image-resizer/state/useCropStore';
+import { useState } from 'react';
+import ImageEditorModal from './components/editor/ImageEditorModal';
+import Upload from './components/editor/Upload';
+import useEditorStore from './state/useEditorStore';
 
 function App() {
   const [activeTool, setActiveTool] = useState('Image Resizer'); // State for active tool
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
-  const { isCropModeOpen, image, openCropMode, closeCropMode, nudgeCrop } = useCropStore();
+  const { isEditorOpen, closeEditor, previewUrl, isLoading, errorMessage, setErrorMessage } = useEditorStore();
 
   // Placeholder for Pro status
-  const isProUser = false; // This will be fetched from the backend later
-
-  const handleCropClick = () => {
-    // For now, use a dummy image URL. In a real scenario, this would be the uploaded image.
-    openCropMode('https://via.placeholder.com/800x600', 800, 600);
-  };
+  const _isProUser = false; // This will be fetched from the backend later
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-800">
@@ -63,25 +58,27 @@ function App() {
 
       <main className="container mx-auto p-4">
         {activeTool === 'Image Resizer' && (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h1 className="text-2xl font-bold mb-4">Image Resizer</h1>
-            <p className="mb-4">
-              Instantly resize your product photos to fit popular marketplaces like Amazon, Etsy, Shopify and more.
+          <div className="bg-white p-6 rounded-lg shadow-md text-center">
+            <h1 className="text-3xl font-bold mb-2">Image Resizer</h1>
+            <p className="mb-6 text-gray-600">
+              Resize, crop, and export images for any platform.
             </p>
-            {/* Placeholder for image upload and resize controls */}
-            <div className="border-2 border-dashed border-gray-300 p-8 text-center">
-              Drag & Drop or Click to Upload Image
+            <div className="flex justify-center space-x-4">
+              <Upload />
+              <button
+                onClick={() => alert('Pro feature coming soon!')}
+                className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75"
+              >
+                Batch Upload (Pro)
+              </button>
             </div>
-            <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
-              Process & Download
-            </button>
-            <button
-              className="mt-4 ml-2 px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600"
-              onClick={handleCropClick}
-            >
-              Crop Image
-            </button>
-            {/* Add a placeholder for the Pro button here if needed, or integrate into header */}
+            <p className="text-xs text-gray-500 mt-4">Max file size: 10MB</p>
+          </div>
+        )}
+        {errorMessage && (
+          <div className="fixed top-20 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50">
+            <p>{errorMessage}</p>
+            <button onClick={() => setErrorMessage(null)} className="absolute top-1 right-1 text-white">&times;</button>
           </div>
         )}
         {activeTool === 'PDF Tool' && (
@@ -98,9 +95,14 @@ function App() {
         )}
       </main>
 
-      <CropModeModal isOpen={isCropModeOpen} onClose={closeCropMode} />
+      {isLoading && (
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      )}
+      <ImageEditorModal isOpen={isEditorOpen} onClose={closeEditor} previewUrl={previewUrl} />
     </div>
   );
 }
 
-export default App
+export default App;

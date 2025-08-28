@@ -60,8 +60,8 @@ const CropControls: React.FC = () => {
                 newHeight = newWidth / (ratioW / ratioH);
               }
 
-              const maxAllowedWidth = (image.width || 0) - crop.x;
-              const maxAllowedHeight = (image.height || 0) - crop.y;
+              const _maxAllowedWidth = (image.width || 0) - crop.x;
+              const _maxAllowedHeight = (image.height || 0) - crop.y;
 
               newWidth = clampCropDimension(newWidth, crop.x, image.width || 0, limits.minCropPx);
               newHeight = clampCropDimension(newHeight, crop.y, image.height || 0, limits.minCropPx);
@@ -110,8 +110,8 @@ const CropControls: React.FC = () => {
                 newWidth = newHeight * (ratioW / ratioH);
               }
 
-              const maxAllowedWidth = (image.width || 0) - crop.x;
-              const maxAllowedHeight = (image.height || 0) - crop.y;
+              const _maxAllowedWidth = (image.width || 0) - crop.x;
+              const _maxAllowedHeight = (image.height || 0) - crop.y;
 
               newWidth = clampCropDimension(newWidth, crop.x, image.width || 0, limits.minCropPx);
               newHeight = clampCropDimension(newHeight, crop.y, image.height || 0, limits.minCropPx);
