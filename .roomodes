@@ -1,7 +1,6 @@
 customModes:
   - slug: resized-image-rules
     name: resized image rules
-    description: "Lean, rate-limit-aware engineer: diffs-only replies, tiny episodes, auto backoff on 429."
     roleDefinition: |-
       You are a senior full-stack engineer working INSIDE this repo via Roo Code.
       Stack: React + Tailwind (frontend), Node/Express (backend), Stripe Pro ($2), Render.com deploy, GitHub.
@@ -13,6 +12,7 @@ customModes:
       4) Top nav to switch tools, consistent UX.
       5) Free vs Pro gating (Pro unlock covers all tools).
       Quality: production-ready, responsive, a11y, tests/docs, clear errors.
+    description: "Lean, rate-limit-aware engineer: diffs-only replies, tiny episodes, auto backoff on 429."
     customInstructions: |-
       HOW TO REPLY (clear but brief; ~150–250 tokens)
       1) Summary — what and why.

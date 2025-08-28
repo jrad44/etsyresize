@@ -21,6 +21,11 @@ interface CropState {
   nudgeCrop: (direction: 'up' | 'down' | 'left' | 'right', largeStep?: boolean) => void;
   setProStatus: (isPro: boolean) => void;
   setDailyFreeRemaining: (count: number) => void;
+  setAspectRatio: (ratio: string | null) => void;
+  setZoomLevel: (level: number) => void;
+  resetZoomPan: () => void;
+  rotate: (direction: 'CW' | 'CCW') => void;
+  flip: (axis: 'H' | 'V') => void;
 }
 
 const useCropStore = create<CropState>((set, get) => ({
@@ -81,6 +86,58 @@ const useCropStore = create<CropState>((set, get) => ({
   },
   setProStatus: (isPro) => set((state) => ({ pro: { ...state.pro, isPro } })),
   setDailyFreeRemaining: (count) => set((state) => ({ pro: { ...state.pro, dailyFreeRemaining: count } })),
+  setAspectRatio: (ratio) => set((state) => {
+    const { crop, image } = state;
+    let newWidth = crop.width;
+    let newHeight = crop.height;
+
+    if (ratio === 'Free') {
+      return { crop: { ...crop, ratio: null } };
+    }
+
+    const [ratioW, ratioH] = ratio!.split(':').map(Number);
+    const currentRatio = crop.width / crop.height;
+    const targetRatio = ratioW / ratioH;
+
+    if (currentRatio > targetRatio) { // Current is wider than target, adjust width
+      newWidth = crop.height * targetRatio;
+    } else { // Current is taller than target, adjust height
+      newHeight = crop.width / targetRatio;
+    }
+
+    // Recenter the crop box
+    const centerX = crop.x + crop.width / 2;
+    const centerY = crop.y + crop.height / 2;
+
+    let newX = centerX - newWidth / 2;
+    let newY = centerY - newHeight / 2;
+
+    // Clamp to image bounds
+    newX = Math.max(0, Math.min(newX, (image.width || 0) - newWidth));
+    newY = Math.max(0, Math.min(newY, (image.height || 0) - newHeight));
+
+    return { crop: { ...crop, x: newX, y: newY, width: newWidth, height: newHeight, ratio } };
+  }),
+  setZoomLevel: (level: number) => set((state) => ({ view: { ...state.view, zoom: level } })),
+  resetZoomPan: () => set((state) => ({ view: { ...state.view, zoom: 1, pan: { x: 0, y: 0 } } })),
+  rotate: (direction) => set((state) => {
+    const currentRotation = state.transform.rotation;
+    let newRotation = currentRotation;
+    if (direction === 'CW') {
+      newRotation = (currentRotation + 90) % 360;
+    } else {
+      newRotation = (currentRotation - 90 + 360) % 360;
+    }
+    // TODO: Reproject crop to new coordinates
+    return { transform: { ...state.transform, rotation: newRotation } };
+  }),
+  flip: (axis) => set((state) => {
+    if (axis === 'H') {
+      return { transform: { ...state.transform, flipH: !state.transform.flipH } };
+    } else {
+      return { transform: { ...state.transform, flipV: !state.transform.flipV } };
+    }
+  }),
 }));
 
 export default useCropStore;
