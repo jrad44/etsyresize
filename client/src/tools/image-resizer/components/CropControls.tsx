@@ -2,7 +2,7 @@ import React from 'react';
 import useCropStore from '../state/useCropStore';
 
 const CropControls: React.FC = () => {
-  const { crop, view, toggleGrid, setCrop, setAspectRatio, image, limits, setZoomLevel, resetZoomPan, rotate, flip } = useCropStore();
+  const { crop, view, transform, toggleGrid, setCrop, setAspectRatio, image, limits, setZoom, setRotation, resetZoomPan, rotate, flip } = useCropStore();
 
   const clampCropDimension = (value: number, currentPos: number, maxImageDim: number, minCrop: number) => {
     return Math.max(minCrop, Math.min(value, maxImageDim - currentPos));
@@ -193,12 +193,40 @@ const CropControls: React.FC = () => {
             Grid
           </button>
         </div>
+        <div className="col-span-2 mt-4">
+          <label htmlFor="zoom" className="block text-sm font-medium text-gray-700">Zoom: {Math.round(view.zoom * 100)}%</label>
+          <input
+            type="range"
+            id="zoom"
+            name="zoom"
+            min="0.1"
+            max="5"
+            step="0.01"
+            value={view.zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
+        <div className="col-span-2 mt-2">
+          <label htmlFor="rotation" className="block text-sm font-medium text-gray-700">Rotate: {transform.rotation}°</label>
+          <input
+            type="range"
+            id="rotation"
+            name="rotation"
+            min="0"
+            max="360"
+            step="1"
+            value={transform.rotation}
+            onChange={(e) => setRotation(Number(e.target.value))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
         <div className="col-span-2 flex items-center justify-center space-x-2 mt-2">
-          <button onClick={() => setZoomLevel(view.zoom / 1.2)} className="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">-</button>
+          <button onClick={() => setZoom(view.zoom / 1.2)} className="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">-</button>
           <button onClick={() => resetZoomPan()} className="px-4 py-1 bg-gray-200 rounded-md hover:bg-gray-300">{Math.round(view.zoom * 100)}%</button>
-          <button onClick={() => setZoomLevel(view.zoom * 1.2)} className="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">+</button>
+          <button onClick={() => setZoom(view.zoom * 1.2)} className="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">+</button>
           <button onClick={() => resetZoomPan()} className="px-4 py-1 bg-gray-200 rounded-md hover:bg-gray-300">Fit</button>
-          <button onClick={() => setZoomLevel(1)} className="px-4 py-1 bg-gray-200 rounded-md hover:bg-gray-300">1:1</button>
+          <button onClick={() => setZoom(1)} className="px-4 py-1 bg-gray-200 rounded-md hover:bg-gray-300">1:1</button>
         </div>
         <div aria-live="polite" className="sr-only">
           {`Current crop dimensions: ${Math.round(crop.width)} by ${Math.round(crop.height)} pixels.`}

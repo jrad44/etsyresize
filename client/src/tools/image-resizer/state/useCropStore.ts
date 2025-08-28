@@ -22,7 +22,6 @@ interface CropState {
   setProStatus: (isPro: boolean) => void;
   setDailyFreeRemaining: (count: number) => void;
   setAspectRatio: (ratio: string | null) => void;
-  setZoomLevel: (level: number) => void;
   resetZoomPan: () => void;
   rotate: (direction: 'CW' | 'CCW') => void;
   flip: (axis: 'H' | 'V') => void;
@@ -120,18 +119,69 @@ const useCropStore = create<CropState>((set, get) => ({
 
     return { crop: { ...crop, x: newX, y: newY, width: newWidth, height: newHeight, ratio } };
   }),
-  setZoomLevel: (level: number) => set((state) => ({ view: { ...state.view, zoom: level } })),
   resetZoomPan: () => set((state) => ({ view: { ...state.view, zoom: 1, pan: { x: 0, y: 0 } } })),
   rotate: (direction) => set((state) => {
-    const currentRotation = state.transform.rotation;
+    const { crop, image, transform } = state;
+    const currentRotation = transform.rotation;
     let newRotation = currentRotation;
+
     if (direction === 'CW') {
       newRotation = (currentRotation + 90) % 360;
     } else {
       newRotation = (currentRotation - 90 + 360) % 360;
     }
-    // TODO: Reproject crop to new coordinates
-    return { transform: { ...state.transform, rotation: newRotation } };
+
+    // If image dimensions are not available, or crop is not initialized, just update rotation
+    if (!image.width || !image.height || crop.width === 0 || crop.height === 0) {
+      return { transform: { ...transform, rotation: newRotation } };
+    }
+
+    const imageWidth = image.width;
+    const imageHeight = image.height;
+
+    // Calculate the center of the image
+    const imageCenterX = imageWidth / 2;
+    const imageCenterY = imageHeight / 2;
+
+    // Calculate the center of the current crop box
+    const cropCenterX = crop.x + crop.width / 2;
+    const cropCenterY = crop.y + crop.height / 2;
+
+    // Translate crop center to origin, rotate, then translate back
+    const translatedX = cropCenterX - imageCenterX;
+    const translatedY = cropCenterY - imageCenterY;
+
+    const angleRad = (newRotation * Math.PI) / 180;
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+
+    const rotatedX = translatedX * cos - translatedY * sin;
+    const rotatedY = translatedX * sin + translatedY * cos;
+
+    const newCropCenterX = rotatedX + imageCenterX;
+    const newCropCenterY = rotatedY + imageCenterY;
+
+    let newCropWidth = crop.width;
+    let newCropHeight = crop.height;
+
+    // If rotating by 90 or 270 degrees, swap width and height
+    if (newRotation === 90 || newRotation === 270 || newRotation === -90 || newRotation === -270) {
+      newCropWidth = crop.height;
+      newCropHeight = crop.width;
+    }
+
+    // Calculate new top-left corner
+    let newX = newCropCenterX - newCropWidth / 2;
+    let newY = newCropCenterY - newCropHeight / 2;
+
+    // Ensure crop stays within image bounds after rotation
+    newX = Math.max(0, Math.min(newX, imageWidth - newCropWidth));
+    newY = Math.max(0, Math.min(newY, imageHeight - newCropHeight));
+
+    return {
+      crop: { ...crop, x: newX, y: newY, width: newCropWidth, height: newCropHeight },
+      transform: { ...transform, rotation: newRotation },
+    };
   }),
   flip: (axis) => set((state) => {
     if (axis === 'H') {

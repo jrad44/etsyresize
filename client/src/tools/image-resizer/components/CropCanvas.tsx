@@ -8,7 +8,7 @@ interface CropCanvasProps {
 }
 
 const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth, imageHeight }) => {
-  const { crop, image, view, setCrop, limits } = useCropStore();
+  const { crop, image, view, transform, setCrop, limits, setPan } = useCropStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const [containerDims, setContainerDims] = useState({ width: 0, height: 0 });
@@ -37,7 +37,6 @@ const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth, imageHeig
   // Calculate scaled image dimensions and initial crop
   useEffect(() => {
     if (imageRef.current && image.width && image.height && containerDims.width && containerDims.height) {
-      const img = imageRef.current;
       const aspectRatio = image.width / image.height;
       let scaledWidth = containerDims.width;
       let scaledHeight = containerDims.width / aspectRatio;
@@ -69,13 +68,37 @@ const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth, imageHeig
         });
       }
     }
-  }, [image.width, image.height, containerDims, setCrop]);
+  }, [image.width, image.height, containerDims, setCrop, transform.rotation]);
 
   // Convert crop coordinates from image-relative to container-relative
+  // These are the coordinates of the crop box *before* any image transformations (zoom, pan, rotate, flip)
   const cropX = scaledImageDims.x + crop.x;
   const cropY = scaledImageDims.y + crop.y;
   const cropWidth = crop.width;
   const cropHeight = crop.height;
+
+  // Pan and Zoom handlers
+  const handlePanMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const dx = moveEvent.clientX - dragStart.x;
+      const dy = moveEvent.clientY - dragStart.y;
+      setPan({ x: view.pan.x + dx, y: view.pan.y + dy });
+      setDragStart({ x: moveEvent.clientX, y: moveEvent.clientY }); // Update drag start for continuous pan
+    };
+
+    const onMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
 
   const handleMouseDown = (e: React.MouseEvent | React.TouchEvent, handle?: string) => {
     e.preventDefault();
@@ -104,61 +127,75 @@ const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth, imageHeig
 
     let { x, y, width, height } = initialCrop;
 
+    // Adjust dx, dy based on current rotation for resizing handles
+    // This ensures that dragging a handle "north" always moves it towards the top of the *rotated* image
+    let adjustedDx = dx;
+    let adjustedDy = dy;
+    const rotationRad = (transform.rotation * Math.PI) / 180;
+    if (activeHandle !== null) {
+      adjustedDx = dx * Math.cos(-rotationRad) - dy * Math.sin(-rotationRad);
+      adjustedDy = dx * Math.sin(-rotationRad) + dy * Math.cos(-rotationRad);
+    }
+
     if (activeHandle === null) { // Moving the crop box
-      x = initialCrop.x + dx;
-      y = initialCrop.y + dy;
+      x = initialCrop.x + dx / view.zoom;
+      y = initialCrop.y + dy / view.zoom;
     } else { // Resizing the crop box
       const minCrop = limits.minCropPx;
       const imageMaxX = scaledImageDims.width;
       const imageMaxY = scaledImageDims.height;
 
+      // Apply zoom to delta for resizing
+      const zoomAdjustedDx = adjustedDx / view.zoom;
+      const zoomAdjustedDy = adjustedDy / view.zoom;
+
       switch (activeHandle) {
-        case 'nw':
-          x = Math.min(initialCrop.x + dx, initialCrop.x + initialCrop.width - minCrop);
-          y = Math.min(initialCrop.y + dy, initialCrop.y + initialCrop.height - minCrop);
+        case 'nw': // Top-left
+          x = Math.min(initialCrop.x + zoomAdjustedDx, initialCrop.x + initialCrop.width - minCrop);
+          y = Math.min(initialCrop.y + zoomAdjustedDy, initialCrop.y + initialCrop.height - minCrop);
           width = initialCrop.width - (x - initialCrop.x);
           height = initialCrop.height - (y - initialCrop.y);
           break;
-        case 'ne':
+        case 'ne': // Top-right
           x = initialCrop.x;
-          y = Math.min(initialCrop.y + dy, initialCrop.y + initialCrop.height - minCrop);
-          width = Math.max(minCrop, initialCrop.width + dx);
+          y = Math.min(initialCrop.y + zoomAdjustedDy, initialCrop.y + initialCrop.height - minCrop);
+          width = Math.max(minCrop, initialCrop.width + zoomAdjustedDx);
           height = initialCrop.height - (y - initialCrop.y);
           break;
-        case 'sw':
-          x = Math.min(initialCrop.x + dx, initialCrop.x + initialCrop.width - minCrop);
+        case 'sw': // Bottom-left
+          x = Math.min(initialCrop.x + zoomAdjustedDx, initialCrop.x + initialCrop.width - minCrop);
           y = initialCrop.y;
           width = initialCrop.width - (x - initialCrop.x);
-          height = Math.max(minCrop, initialCrop.height + dy);
+          height = Math.max(minCrop, initialCrop.height + zoomAdjustedDy);
           break;
-        case 'se':
+        case 'se': // Bottom-right
           x = initialCrop.x;
           y = initialCrop.y;
-          width = Math.max(minCrop, initialCrop.width + dx);
-          height = Math.max(minCrop, initialCrop.height + dy);
+          width = Math.max(minCrop, initialCrop.width + zoomAdjustedDx);
+          height = Math.max(minCrop, initialCrop.height + zoomAdjustedDy);
           break;
-        case 'n':
+        case 'n': // Top
           x = initialCrop.x;
-          y = Math.min(initialCrop.y + dy, initialCrop.y + initialCrop.height - minCrop);
+          y = Math.min(initialCrop.y + zoomAdjustedDy, initialCrop.y + initialCrop.height - minCrop);
           width = initialCrop.width;
           height = initialCrop.height - (y - initialCrop.y);
           break;
-        case 's':
+        case 's': // Bottom
           x = initialCrop.x;
           y = initialCrop.y;
           width = initialCrop.width;
-          height = Math.max(minCrop, initialCrop.height + dy);
+          height = Math.max(minCrop, initialCrop.height + zoomAdjustedDy);
           break;
-        case 'w':
-          x = Math.min(initialCrop.x + dx, initialCrop.x + initialCrop.width - minCrop);
+        case 'w': // Left
+          x = Math.min(initialCrop.x + zoomAdjustedDx, initialCrop.x + initialCrop.width - minCrop);
           y = initialCrop.y;
           width = initialCrop.width - (x - initialCrop.x);
           height = initialCrop.height;
           break;
-        case 'e':
+        case 'e': // Right
           x = initialCrop.x;
           y = initialCrop.y;
-          width = Math.max(minCrop, initialCrop.width + dx);
+          width = Math.max(minCrop, initialCrop.width + zoomAdjustedDx);
           height = initialCrop.height;
           break;
       }
@@ -240,10 +277,12 @@ const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth, imageHeig
             alt="Image to crop"
             className="absolute object-contain"
             style={{
-              width: scaledImageDims.width,
-              height: scaledImageDims.height,
-              left: scaledImageDims.x,
-              top: scaledImageDims.y,
+              width: scaledImageDims.width * view.zoom,
+              height: scaledImageDims.height * view.zoom,
+              left: scaledImageDims.x + view.pan.x - (scaledImageDims.width * view.zoom - scaledImageDims.width) / 2,
+              top: scaledImageDims.y + view.pan.y - (scaledImageDims.height * view.zoom - scaledImageDims.height) / 2,
+              transform: `rotate(${transform.rotation}deg) scaleX(${transform.flipH ? -1 : 1}) scaleY(${transform.flipV ? -1 : 1})`,
+              transformOrigin: 'center center',
             }}
             onLoad={() => {
               // Ensure image dimensions are set in store once loaded
@@ -257,14 +296,21 @@ const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth, imageHeig
           <div
             className="absolute inset-0 bg-black opacity-50"
             style={{
+              // Apply the same transformations to the overlay as the image
+              left: scaledImageDims.x + view.pan.x - (scaledImageDims.width * view.zoom - scaledImageDims.width) / 2,
+              top: scaledImageDims.y + view.pan.y - (scaledImageDims.height * view.zoom - scaledImageDims.height) / 2,
+              width: scaledImageDims.width * view.zoom,
+              height: scaledImageDims.height * view.zoom,
+              transform: `rotate(${transform.rotation}deg) scaleX(${transform.flipH ? -1 : 1}) scaleY(${transform.flipV ? -1 : 1})`,
+              transformOrigin: 'center center',
               clipPath: `polygon(
                 0 0, 0 100%,
-                ${cropX}px 100%,
-                ${cropX}px ${cropY}px,
-                ${cropX + cropWidth}px ${cropY}px,
-                ${cropX + cropWidth}px ${cropY + cropHeight}px,
-                ${cropX}px ${cropY + cropHeight}px,
-                ${cropX}px 100%,
+                ${crop.x * view.zoom}px 100%,
+                ${crop.x * view.zoom}px ${crop.y * view.zoom}px,
+                ${(crop.x + crop.width) * view.zoom}px ${crop.y * view.zoom}px,
+                ${(crop.x + crop.width) * view.zoom}px ${(crop.y + crop.height) * view.zoom}px,
+                ${crop.x * view.zoom}px ${(crop.y + crop.height) * view.zoom}px,
+                ${crop.x * view.zoom}px 100%,
                 100% 100%, 100% 0
               )`,
             }}
@@ -274,22 +320,24 @@ const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth, imageHeig
           <div
             className="absolute border-2 border-blue-500 box-border"
             style={{
-              left: cropX,
-              top: cropY,
-              width: cropWidth,
-              height: cropHeight,
+              left: scaledImageDims.x + view.pan.x + crop.x * view.zoom,
+              top: scaledImageDims.y + view.pan.y + crop.y * view.zoom,
+              width: crop.width * view.zoom,
+              height: crop.height * view.zoom,
               cursor: 'grab',
+              transform: `rotate(${transform.rotation}deg) scaleX(${transform.flipH ? -1 : 1}) scaleY(${transform.flipV ? -1 : 1})`,
+              transformOrigin: `${crop.width * view.zoom / 2}px ${crop.height * view.zoom / 2}px`, // Rotate around its own center
             }}
             onMouseDown={(e) => handleMouseDown(e)}
             onTouchStart={(e) => handleMouseDown(e)}
             role="region"
-            aria-label={`Crop area, current size ${Math.round(cropWidth)} by ${Math.round(cropHeight)} pixels`}
+            aria-label={`Crop area, current size ${Math.round(crop.width)} by ${Math.round(crop.height)} pixels`}
             tabIndex={0} // Make crop area focusable for keyboard interaction
           >
             {renderRuleOfThirds()}
             {renderHandles()}
             <div className="absolute -bottom-6 left-0 text-white text-sm bg-black bg-opacity-75 px-2 py-1 rounded">
-              {Math.round(cropWidth)} × {Math.round(cropHeight)} px
+              {Math.round(crop.width)} × {Math.round(crop.height)} px
             </div>
           </div>
         </>
