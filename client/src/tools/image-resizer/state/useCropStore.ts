@@ -38,7 +38,6 @@ const useCropStore = create<CropState>((set, get) => ({
   pro: { isPro: false, dailyFreeRemaining: 5 },
 
   openCropMode: (url, width, height) => {
-    console.log('useCropStore: openCropMode called with:', { url, width, height });
     set({
       isCropModeOpen: true,
       image: { url, width: width || 800, height: height || 600 }, // Provide default dimensions if not available

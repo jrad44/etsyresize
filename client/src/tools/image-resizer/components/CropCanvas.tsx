@@ -246,7 +246,6 @@ const CropCanvas: React.FC<CropCanvasProps> = ({ imageUrl, imageWidth, imageHeig
               top: scaledImageDims.y,
             }}
             onLoad={() => {
-              console.log('Image onLoad triggered. Natural dimensions:', imageRef.current?.naturalWidth, imageRef.current?.naturalHeight);
               // Ensure image dimensions are set in store once loaded
               if (imageRef.current && !image.width && !image.height) {
                 useCropStore.getState().openCropMode(imageUrl, imageRef.current.naturalWidth, imageRef.current.naturalHeight);
